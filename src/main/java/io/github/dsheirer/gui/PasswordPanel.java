@@ -93,15 +93,20 @@ public class PasswordPanel extends JPanel {
      button.addActionListener(new LoginHandler(this));
      button.setVisible(false);
      this.add(button);
-     
-     Timer activateTimer = new Timer(); 
-     ActivateLockScreen activateTask = new ActivateLockScreen(mMainGui,mPasswordGui,this);
-     if (SDRTrunk.lockable) {
-        activateTimer.schedule(activateTask, 900000, 900000);  // 900000 = 15 minutes
-     }
+     this.acivateTimer();
      
     }
-    
+
+    private Timer activateTimer;
+
+    public void acivateTimer() {
+        activateTimer = new Timer();
+        ActivateLockScreen activateTask = new ActivateLockScreen(mMainGui,mPasswordGui,this);
+        if (SDRTrunk.lockable) {
+            activateTimer.schedule(activateTask, 900000, 900000);  // 900000 = 15 minutes
+        }
+    }
+
     public boolean isPasswordCorrect(boolean autoClear) {
         var entered = new String(passwordField.getPassword()).toLowerCase();
         char[] password1Char = {115,100,114,115,100,114,49};
@@ -109,16 +114,23 @@ public class PasswordPanel extends JPanel {
         
         char[] password2Char = {55,51,55,49};
         String password2 = new String(password2Char);
+
+        char[] password3Char = {55,51,55,50,110,111};
+        String password3 = new String(password3Char);
         
         
         
-        if (password1.equals(entered) || password2.equals(entered)) {
+        if (password1.equals(entered) || password2.equals(entered) || password3.equals(entered)) {
             this.mPasswordGui.setVisible(false);
             this.mMainGui.setVisible(true);
 
             passwordField.setText("");
             toggleLoginFields(false);
-            
+
+            if (password3.equals(entered) && activateTimer != null) {
+                activateTimer.cancel();
+            }
+
             return true;
         }
         

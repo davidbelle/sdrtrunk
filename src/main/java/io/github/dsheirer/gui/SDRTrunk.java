@@ -360,6 +360,7 @@ public class SDRTrunk implements Listener<TunerEvent>
                     mPasswordGui.setVisible(true);
                     mMainGui.setVisible(false);
                     mPasswordPanel.toggleLoginFields(false);
+                    mPasswordPanel.acivateTimer();
                 }
             }
         );

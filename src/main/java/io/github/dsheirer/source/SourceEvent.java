@@ -34,6 +34,7 @@ public class SourceEvent
     {
         NOTIFICATION_CHANNEL_COUNT_CHANGE,
         NOTIFICATION_CHANNEL_FREQUENCY_CORRECTION_CHANGE,
+        NOTIFICATION_CHANNEL_POWER,
         NOTIFICATION_CHANNEL_SAMPLE_RATE_CHANGE,
         NOTIFICATION_FREQUENCY_AND_SAMPLE_RATE_LOCKED,
         NOTIFICATION_FREQUENCY_AND_SAMPLE_RATE_UNLOCKED,
@@ -45,6 +46,7 @@ public class SourceEvent
         NOTIFICATION_MEASURED_FREQUENCY_ERROR_SYNC_LOCKED,
         NOTIFICATION_RECORDING_FILE_LOADED,
         NOTIFICATION_SAMPLE_RATE_CHANGE,
+        NOTIFICATION_SQUELCH_THRESHOLD,
         NOTIFICATION_STOP_SAMPLE_STREAM,
         NOTIFICATION_TUNER_ID,
         NOTIFICATION_ERROR_STATE,
@@ -54,6 +56,8 @@ public class SourceEvent
         REQUEST_FREQUENCY_ROTATION,
         REQUEST_FREQUENCY_SELECTION,
         REQUEST_SOURCE_DISPOSE,
+        REQUEST_CHANGE_SQUELCH_THRESHOLD,
+        REQUEST_CURRENT_SQUELCH_THRESHOLD,
         REQUEST_START_SAMPLE_STREAM,
         REQUEST_STOP_SAMPLE_STREAM;
 
@@ -427,8 +431,52 @@ public class SourceEvent
         return new SourceEvent(Event.NOTIFICATION_FREQUENCY_ROTATION_FAILURE, source, frequency);
     }
 
+
     public static SourceEvent createTunerId(Source source, String tunerID) {
         return new SourceEvent(Event.NOTIFICATION_TUNER_ID, source, 0, tunerID);
+    }
+
+    /**
+     * Creates a notification of current channel power level
+     * @param source producing the notification
+     * @param powerDb of the channel (avg)
+     * @return new source event
+     */
+    public static SourceEvent channelPowerLevel(Source source, double powerDb)
+    {
+        return new SourceEvent(Event.NOTIFICATION_CHANNEL_POWER, source, powerDb);
+    }
+
+    /**
+     * Creates a squelch threshold change notification
+     * @param source for the event
+     * @param thresholdDb setting for the power squelch
+     * @return new source event
+     */
+    public static SourceEvent squelchThreshold(Source source, double thresholdDb)
+    {
+        return new SourceEvent(Event.NOTIFICATION_SQUELCH_THRESHOLD, source, thresholdDb);
+    }
+
+    /**
+     * Requests the current squelch threshold value
+     * @param source optional
+     * @return source event
+     */
+    public static SourceEvent requestCurrentSquelchThreshold(Source source)
+    {
+        return new SourceEvent(Event.REQUEST_CURRENT_SQUELCH_THRESHOLD, source, 0);
+    }
+
+    /**
+     * Creates a new squelch threshold level be applied to the channel's power squelch control
+     * @param source of the request
+     * @param thresholdDb setting to apply
+     * @return new source event
+     */
+    public static SourceEvent requestSquelchThreshold(Source source, double thresholdDb)
+    {
+        return new SourceEvent(Event.REQUEST_CHANGE_SQUELCH_THRESHOLD, source, thresholdDb);
     }
 
     @Override

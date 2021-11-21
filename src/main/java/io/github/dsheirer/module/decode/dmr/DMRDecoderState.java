@@ -73,8 +73,13 @@ import io.github.dsheirer.module.decode.dmr.message.type.ServiceOptions;
 import io.github.dsheirer.module.decode.dmr.message.voice.VoiceMessage;
 import io.github.dsheirer.module.decode.event.DecodeEvent;
 import io.github.dsheirer.module.decode.event.DecodeEventType;
+import io.github.dsheirer.module.decode.event.PlottableDecodeEvent;
+import io.github.dsheirer.protocol.Protocol;
 import io.github.dsheirer.source.tuner.channel.rotation.AddChannelRotationActiveStateRequest;
 import org.apache.commons.math3.util.FastMath;
+
+import io.github.dsheirer.util.PacketUtil;
+import org.jdesktop.swingx.mapviewer.GeoPosition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -275,6 +280,20 @@ public class DMRDecoderState extends TimeslotDecoderState
                 .build();
 
         broadcast(packetEvent);
+
+        GeoPosition geoPosition = PacketUtil.extractGeoPosition(packet.getPacket());
+
+        if (geoPosition != null) {
+            PlottableDecodeEvent plottableDecodeEvent = PlottableDecodeEvent.plottableBuilder(packet.getTimestamp())
+                    .channel(getCurrentChannel())
+                    .eventDescription(DecodeEventType.GPS.toString())
+                    .identifiers(getMergedIdentifierCollection(packet.getIdentifiers()))
+                    .protocol(Protocol.LRRP)
+                    .location(geoPosition)
+                    .build();
+
+            broadcast(plottableDecodeEvent);
+        }
     }
 
     /**
