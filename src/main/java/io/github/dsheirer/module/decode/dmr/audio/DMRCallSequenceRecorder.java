@@ -23,18 +23,26 @@ package io.github.dsheirer.module.decode.dmr.audio;
 import io.github.dsheirer.audio.codec.mbe.MBECallSequence;
 import io.github.dsheirer.audio.codec.mbe.MBECallSequenceRecorder;
 import io.github.dsheirer.bits.BinaryMessage;
+import io.github.dsheirer.identifier.MutableIdentifierCollection;
+import io.github.dsheirer.identifier.Role;
 import io.github.dsheirer.message.IMessage;
+import io.github.dsheirer.module.decode.dmr.event.DMRDecodeEvent;
 import io.github.dsheirer.module.decode.dmr.message.DMRMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.LCMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.FullLCMessage;
+import io.github.dsheirer.module.decode.dmr.message.data.lc.full.GPSInformation;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.GroupVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.UnitToUnitVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.hytera.HyteraGroupVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.hytera.HyteraUnitToUnitVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.motorola.CapacityPlusGroupVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.motorola.CapacityPlusWideAreaVoiceChannelUser;
+import io.github.dsheirer.module.decode.dmr.message.data.lc.shorty.CapacityPlusRestChannel;
 import io.github.dsheirer.module.decode.dmr.message.data.terminator.Terminator;
+import io.github.dsheirer.module.decode.dmr.message.type.ServiceOptions;
 import io.github.dsheirer.module.decode.dmr.message.voice.VoiceMessage;
+import io.github.dsheirer.module.decode.event.DecodeEvent;
+import io.github.dsheirer.module.decode.event.DecodeEventType;
 import io.github.dsheirer.preference.UserPreferences;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -149,7 +157,9 @@ public class DMRCallSequenceRecorder extends MBECallSequenceRecorder
     /**
      * Process full link control messages to extract call details
      */
-    private void process(FullLCMessage message)
+
+
+    private void process2(FullLCMessage message)
     {
         if(message.isValid() && mCallSequence != null)
         {
@@ -167,6 +177,7 @@ public class DMRCallSequenceRecorder extends MBECallSequenceRecorder
                 case FULL_CAPACITY_PLUS_WIDE_AREA_VOICE_CHANNEL_USER:
                     if(message instanceof CapacityPlusWideAreaVoiceChannelUser cpwavcu)
                     {
+                        mCallSequence.setFromIdentifier(cpwavcu.getRadio());
                         mCallSequence.setToIdentifier(cpwavcu.getTalkgroup());
                         mCallSequence.setEncrypted(cpwavcu.getServiceOptions().isEncrypted());
                         mCallSequence.setCallType(CALL_TYPE_GROUP);

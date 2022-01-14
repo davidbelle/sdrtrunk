@@ -84,6 +84,8 @@ public abstract class DataMessageWithLinkControl extends DataMessage
             return getLCMessage().getIdentifiers();
         }
 
+        
+
         return Collections.emptyList();
     }
 }
