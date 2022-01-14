@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- *  Copyright (C) 2014-2020 Dennis Sheirer
+ * Copyright (C) 2014-2021 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,16 +21,19 @@ package io.github.dsheirer.module.decode.ip.lrrp.token;
 
 import io.github.dsheirer.bits.CorrectedBinaryMessage;
 
+import java.text.DecimalFormat;
+
 /**
  * LRRP Speed Token
- *
+ * <p>
  * Start Token: 0x6C
  * Total Length: 3 bytes
  */
 public class Speed extends Token
 {
-    private static final int[] UNKNOWN = new int[]{8, 9, 10, 11, 12, 13, 14, 15};
-    private static final int[] SPEED = new int[]{16, 17, 18, 19, 20, 21, 22, 23};
+    private static final int[] SPEED = new int[]{8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
+    private static final double SPEED_MULTIPLIER = 0.01; //Units of 1/100 mph
+    private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("0.00");
 
     /**
      * Constructs an instance of a heading token.
@@ -52,14 +55,14 @@ public class Speed extends Token
     /**
      * Speed in kilometers per hour (kph)
      */
-    public long getSpeed()
+    public double getSpeed()
     {
-        return getMessage().getInt(SPEED, getOffset());
+        return getMessage().getInt(SPEED, getOffset()) * SPEED_MULTIPLIER;
     }
 
     @Override
     public String toString()
     {
-        return "SPEED:" + getSpeed() + " KPH";
+        return "SPEED:" + DECIMAL_FORMAT.format(getSpeed()) + " MPH";
     }
 }
