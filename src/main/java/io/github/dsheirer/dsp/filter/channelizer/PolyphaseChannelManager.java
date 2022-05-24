@@ -21,11 +21,13 @@ package io.github.dsheirer.dsp.filter.channelizer;
 import io.github.dsheirer.buffer.INativeBuffer;
 import io.github.dsheirer.buffer.INativeBufferProvider;
 import io.github.dsheirer.buffer.NativeBufferPoisonPill;
+import io.github.dsheirer.controller.channel.event.ChannelStopProcessingRequest;
 import io.github.dsheirer.dsp.filter.FilterFactory;
 import io.github.dsheirer.dsp.filter.channelizer.output.IPolyphaseChannelOutputProcessor;
 import io.github.dsheirer.dsp.filter.channelizer.output.OneChannelOutputProcessor;
 import io.github.dsheirer.dsp.filter.channelizer.output.TwoChannelOutputProcessor;
 import io.github.dsheirer.dsp.filter.design.FilterDesignException;
+import io.github.dsheirer.eventbus.MyEventBus;
 import io.github.dsheirer.sample.Broadcaster;
 import io.github.dsheirer.sample.Listener;
 import io.github.dsheirer.sample.complex.InterleavedComplexSamples;
@@ -37,10 +39,7 @@ import io.github.dsheirer.source.tuner.TunerController;
 import io.github.dsheirer.source.tuner.channel.TunerChannel;
 import io.github.dsheirer.source.tuner.channel.TunerChannelSource;
 import io.github.dsheirer.util.Dispatcher;
-import org.apache.commons.math3.util.FastMath;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -50,6 +49,9 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.apache.commons.math3.util.FastMath;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Polyphase Channel Manager is a DDC channel manager and complex buffer queue/processor for a tuner.  This class
@@ -84,6 +86,7 @@ public class   PolyphaseChannelManager implements ISourceEventProcessor
     private NativeBufferReceiver mNativeBufferReceiver = new NativeBufferReceiver();
     private Dispatcher mBufferDispatcher;
     private Map<Integer,float[]> mOutputProcessorFilters = new HashMap<>();
+    private boolean mRunning = true;
 
 
     /**
@@ -127,6 +130,18 @@ public class   PolyphaseChannelManager implements ISourceEventProcessor
         this(tunerController, tunerController.getFrequency(), tunerController.getSampleRate());
     }
 
+    public void stopAllChannels()
+    {
+        mRunning = false;
+
+        List<TunerChannelSource> toStop = new ArrayList<>(mChannelSources);
+
+        for(TunerChannelSource tunerChannelSource: toStop)
+        {
+            MyEventBus.getGlobalEventBus().post(new ChannelStopProcessingRequest(tunerChannelSource));
+        }
+    }
+
     /**
      * Signals to all provisioned tuner channel sources that the source complex buffer provider has an error and can
      * no longer provide channels, so that the tuner channel source can notify the consumer of the error state.
@@ -162,28 +177,31 @@ public class   PolyphaseChannelManager implements ISourceEventProcessor
      * @return source or null.
      */
 
-    public TunerChannelSource getChannel(TunerChannel tunerChannel, ChannelSpecification channelSpecification,  String tunerId)
+    public TunerChannelSource getChannel(TunerChannel tunerChannel,  String tunerId)
     {
         PolyphaseChannelSource channelSource = null;
 
-        List<Integer> polyphaseIndexes = mChannelCalculator.getChannelIndexes(tunerChannel);
-
-        IPolyphaseChannelOutputProcessor outputProcessor = getOutputProcessor(polyphaseIndexes);
-
-        if(outputProcessor != null)
+        if(mRunning)
         {
-            long centerFrequency = mChannelCalculator.getCenterFrequencyForIndexes(polyphaseIndexes);
+            List<Integer> polyphaseIndexes = mChannelCalculator.getChannelIndexes(tunerChannel);
 
-            try
-            {
-                channelSource = new PolyphaseChannelSource(tunerChannel, outputProcessor, mChannelSourceEventListener,
-                    mChannelCalculator.getChannelSampleRate(), centerFrequency);
+            IPolyphaseChannelOutputProcessor outputProcessor = getOutputProcessor(polyphaseIndexes);
 
-                mChannelSources.add(channelSource);
-            }
-            catch(FilterDesignException fde)
+            if(outputProcessor != null)
             {
-                mLog.debug("Couldn't design final output low pass filter for polyphase channel source");
+                long centerFrequency = mChannelCalculator.getCenterFrequencyForIndexes(polyphaseIndexes);
+
+                try
+                {
+                    channelSource = new PolyphaseChannelSource(tunerChannel, outputProcessor, mChannelSourceEventListener,
+                            mChannelCalculator.getChannelSampleRate(), centerFrequency);
+
+                    mChannelSources.add(channelSource);
+                }
+                catch(FilterDesignException fde)
+                {
+                    mLog.debug("Couldn't design final output low pass filter for polyphase channel source");
+                }
             }
         }
 

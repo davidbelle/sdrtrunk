@@ -36,7 +36,8 @@ import io.github.dsheirer.settings.SettingsManager;
 import io.github.dsheirer.source.ISourceEventProcessor;
 import io.github.dsheirer.source.SourceEvent;
 import io.github.dsheirer.source.tuner.Tuner;
-import io.github.dsheirer.source.tuner.TunerModel;
+import io.github.dsheirer.source.tuner.manager.DiscoveredTuner;
+import io.github.dsheirer.source.tuner.ui.DiscoveredTunerModel;
 import io.github.dsheirer.spectrum.OverlayPanel.ChannelDisplay;
 import io.github.dsheirer.spectrum.converter.ComplexDecibelConverter;
 import io.github.dsheirer.spectrum.converter.DFTResultsConverter;
@@ -46,6 +47,17 @@ import io.github.dsheirer.spectrum.menu.FFTWindowTypeItem;
 import io.github.dsheirer.spectrum.menu.FrameRateItem;
 import io.github.dsheirer.spectrum.menu.SmoothingItem;
 import io.github.dsheirer.spectrum.menu.SmoothingTypeItem;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.EventQueue;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
+import java.util.ArrayList;
+import java.util.Hashtable;
 import net.miginfocom.swing.MigLayout;
 import org.apache.commons.math3.util.FastMath;
 import org.slf4j.Logger;
@@ -67,17 +79,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.MouseInputAdapter;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.EventQueue;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseWheelEvent;
-import java.util.ArrayList;
-import java.util.Hashtable;
 
 public class SpectralDisplayPanel extends JPanel
         implements Listener<INativeBuffer>, ISourceEventProcessor, IDFTWidthChangeProcessor
@@ -105,7 +106,7 @@ public class SpectralDisplayPanel extends JPanel
     private ChannelModel mChannelModel;
     private ChannelProcessingManager mChannelProcessingManager;
     private SettingsManager mSettingsManager;
-    private TunerModel mTunerModel;
+    private DiscoveredTunerModel mDiscoveredTunerModel;
     private Tuner mTuner;
 
     /**
@@ -120,12 +121,12 @@ public class SpectralDisplayPanel extends JPanel
      * the DFT is translated to decibels for display in the spectrum and
      * waterfall components.
      */
-    public SpectralDisplayPanel(PlaylistManager playlistManager, SettingsManager settingsManager, TunerModel tunerModel)
+    public SpectralDisplayPanel(PlaylistManager playlistManager, SettingsManager settingsManager, DiscoveredTunerModel discoveredTunerModel)
     {
         mChannelModel = playlistManager.getChannelModel();
         mChannelProcessingManager = playlistManager.getChannelProcessingManager();
         mSettingsManager = settingsManager;
-        mTunerModel = tunerModel;
+        mDiscoveredTunerModel = discoveredTunerModel;
 
         mSpectrumPanel = new SpectrumPanel(mSettingsManager);
         mOverlayPanel = new OverlayPanel(mSettingsManager, mChannelModel, mChannelProcessingManager);
@@ -442,7 +443,6 @@ public class SpectralDisplayPanel extends JPanel
             //Fire frequency and sample rate change events so that the spectrum
             //and overlay panels can synchronize
             process(SourceEvent.frequencyChange(null, mTuner.getTunerController().getFrequency()));
-
             process(SourceEvent.sampleRateChange(mTuner.getTunerController().getSampleRate()));
         }
     }
@@ -455,7 +455,7 @@ public class SpectralDisplayPanel extends JPanel
         if(mTuner != null)
         {
             //Deregister for frequency change events from the tuner
-            mTuner.getTunerController().removeListener(this);
+            mTuner.getTunerController().removeListener(SpectralDisplayPanel.this);
 
             //Deregister the dft processor from receiving samples
             mTuner.getTunerController().removeBufferListener(mComplexDftProcessor);
@@ -466,6 +466,14 @@ public class SpectralDisplayPanel extends JPanel
         mComplexDftProcessor.clearBuffer();
         mSpectrumPanel.clearSpectrum();
         mWaterfallPanel.clearWaterfall();
+    }
+
+    /**
+     * Currently displayed tuner
+     */
+    public Tuner getTuner()
+    {
+        return mTuner;
     }
 
     /**
@@ -756,9 +764,9 @@ public class SpectralDisplayPanel extends JPanel
 
                 boolean separatorAdded = false;
 
-                for(Tuner tuner : mTunerModel.getTuners())
+                for(DiscoveredTuner discoveredTuner : mDiscoveredTunerModel.getAvailableTuners())
                 {
-                    if(mTuner == null || mTuner != tuner)
+                    if(mTuner == null || mTuner != discoveredTuner.getTuner())
                     {
                         if(!separatorAdded)
                         {
@@ -766,7 +774,7 @@ public class SpectralDisplayPanel extends JPanel
                             separatorAdded = true;
                         }
 
-                        contextMenu.add(new ShowTunerMenuItem(mTunerModel, tuner));
+                        contextMenu.add(new ShowTunerMenuItem(mDiscoveredTunerModel, discoveredTuner.getTuner()));
                     }
                 }
 

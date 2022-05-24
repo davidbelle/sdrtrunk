@@ -25,6 +25,8 @@ import io.github.dsheirer.audio.broadcast.AbstractAudioBroadcaster;
 import io.github.dsheirer.audio.broadcast.AudioRecording;
 import io.github.dsheirer.audio.broadcast.BroadcastEvent;
 import io.github.dsheirer.audio.broadcast.BroadcastState;
+import io.github.dsheirer.audio.convert.InputAudioFormat;
+import io.github.dsheirer.audio.convert.MP3Setting;
 import io.github.dsheirer.gui.playlist.radioreference.RadioReferenceDecoder;
 import io.github.dsheirer.identifier.Form;
 import io.github.dsheirer.identifier.Identifier;
@@ -66,6 +68,7 @@ public class BroadcastifyCallBroadcaster extends AbstractAudioBroadcaster<Broadc
     private static final String MULTIPART_TYPE = "multipart";
     private static final String DEFAULT_SUBTYPE = "form-data";
     private static final String MULTIPART_FORM_DATA = MULTIPART_TYPE + "/" + DEFAULT_SUBTYPE;
+    private ScheduledFuture<?> mBroadcastifyTestFuture;
     private Queue<AudioRecording> mAudioRecordingQueue = new LinkedTransferQueue<>();
     private ScheduledFuture<?> mAudioRecordingProcessorFuture;
     private HttpClient mHttpClient = HttpClient.newBuilder()
@@ -81,7 +84,8 @@ public class BroadcastifyCallBroadcaster extends AbstractAudioBroadcaster<Broadc
      * @param config to use
      * @param aliasModel for access to aliases
      */
-    public BroadcastifyCallBroadcaster(BroadcastifyCallConfiguration config, AliasModel aliasModel)
+    public BroadcastifyCallBroadcaster(BroadcastifyCallConfiguration config, InputAudioFormat inputAudioFormat,
+                                       MP3Setting mp3Setting, AliasModel aliasModel)
     {
         super(config);
     }
@@ -106,6 +110,12 @@ public class BroadcastifyCallBroadcaster extends AbstractAudioBroadcaster<Broadc
             setBroadcastState(BroadcastState.ERROR);
         }
 
+        if(mBroadcastifyTestFuture == null && getBroadcastConfiguration().isTestEnabled())
+        {
+            // Test periodically so we don't get marked offline due to radio inactivity
+            mBroadcastifyTestFuture = ThreadPool.SCHEDULED.scheduleAtFixedRate(new BroadcastifyCallTest(), getBroadcastConfiguration().getTestInterval(), getBroadcastConfiguration().getTestInterval(), TimeUnit.MINUTES);
+        }
+
         if(mAudioRecordingProcessorFuture == null)
         {
             mAudioRecordingProcessorFuture = ThreadPool.SCHEDULED.scheduleAtFixedRate(new AudioRecordingProcessor(),
@@ -119,12 +129,34 @@ public class BroadcastifyCallBroadcaster extends AbstractAudioBroadcaster<Broadc
     @Override
     public void stop()
     {
+        if(mBroadcastifyTestFuture != null)
+        {
+            mBroadcastifyTestFuture.cancel(true);
+            mBroadcastifyTestFuture = null;
+        }
         if(mAudioRecordingProcessorFuture != null)
         {
             mAudioRecordingProcessorFuture.cancel(true);
             mAudioRecordingProcessorFuture = null;
             dispose();
             setBroadcastState(BroadcastState.DISCONNECTED);
+        }
+    }
+
+    public class BroadcastifyCallTest implements Runnable
+    {
+        @Override
+        public void run()
+        {
+            String response = testConnection(getBroadcastConfiguration());
+            if(response != null && response.toLowerCase().startsWith("ok"))
+            {
+                mLog.info("Broadcastify Calls keep-alive success");
+            }
+            else
+            {
+                mLog.info("Broadcastify Calls keep-alive failure");
+            }
         }
     }
 
@@ -415,28 +447,20 @@ public class BroadcastifyCallBroadcaster extends AbstractAudioBroadcaster<Broadc
      */
     private static String getTo(AudioRecording audioRecording)
     {
-        List<Identifier> toIdentifiers = audioRecording.getIdentifierCollection().getIdentifiers(Role.TO);
+        Identifier identifier = audioRecording.getIdentifierCollection().getToIdentifier();
 
-        //Format a patch group first, if there are multiples
-        for(Identifier identifier: toIdentifiers)
+        if(identifier instanceof PatchGroupIdentifier patchGroupIdentifier)
         {
-            if(identifier instanceof PatchGroupIdentifier patchGroupIdentifier)
-            {
-                return format(patchGroupIdentifier);
-            }
+            return format(patchGroupIdentifier);
         }
-
-        for(Identifier identifier: toIdentifiers)
+        else if(identifier instanceof TalkgroupIdentifier talkgroupIdentifier)
         {
-            if(identifier instanceof TalkgroupIdentifier talkgroupIdentifier)
-            {
-                return String.valueOf(RadioReferenceDecoder.convertToRadioReferenceTalkgroup(talkgroupIdentifier.getValue(),
-                        talkgroupIdentifier.getProtocol()));
-            }
-            else if(identifier instanceof RadioIdentifier radioIdentifier)
-            {
-                return radioIdentifier.getValue().toString();
-            }
+            return String.valueOf(RadioReferenceDecoder.convertToRadioReferenceTalkgroup(talkgroupIdentifier.getValue(),
+                    talkgroupIdentifier.getProtocol()));
+        }
+        else if(identifier instanceof RadioIdentifier radioIdentifier)
+        {
+            return radioIdentifier.getValue().toString();
         }
 
         return "0";

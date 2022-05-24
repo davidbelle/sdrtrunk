@@ -29,6 +29,7 @@ import io.github.dsheirer.audio.playback.AudioPlaybackManager;
 import io.github.dsheirer.controller.ControllerPanel;
 import io.github.dsheirer.controller.channel.Channel;
 import io.github.dsheirer.controller.channel.ChannelAutoStartFrame;
+import io.github.dsheirer.controller.channel.ChannelException;
 import io.github.dsheirer.controller.channel.ChannelSelectionManager;
 import io.github.dsheirer.eventbus.MyEventBus;
 import io.github.dsheirer.gui.icon.ViewIconManagerRequest;
@@ -47,12 +48,11 @@ import io.github.dsheirer.properties.SystemProperties;
 import io.github.dsheirer.record.AudioRecordingManager;
 import io.github.dsheirer.sample.Listener;
 import io.github.dsheirer.settings.SettingsManager;
-import io.github.dsheirer.source.SourceManager;
 import io.github.dsheirer.source.tuner.Tuner;
 import io.github.dsheirer.source.tuner.TunerEvent;
-import io.github.dsheirer.source.tuner.TunerModel;
-import io.github.dsheirer.source.tuner.TunerSpectralDisplayManager;
-import io.github.dsheirer.source.tuner.configuration.TunerConfigurationModel;
+import io.github.dsheirer.source.tuner.manager.DiscoveredTuner;
+import io.github.dsheirer.source.tuner.manager.TunerManager;
+import io.github.dsheirer.source.tuner.ui.TunerSpectralDisplayManager;
 import io.github.dsheirer.spectrum.ClearTunerMenuItem;
 import io.github.dsheirer.spectrum.ShowTunerMenuItem;
 import io.github.dsheirer.spectrum.SpectralDisplayPanel;
@@ -68,11 +68,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
-import javax.swing.*;
+import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JFrame;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JSeparator;
+import javax.swing.KeyStroke;
+import javax.swing.UIManager;
 import javax.swing.event.MenuEvent;
 import javax.swing.event.MenuListener;
 import javax.swing.plaf.metal.MetalLookAndFeel;
-import java.awt.*;
+import java.awt.AWTException;
+import java.awt.Desktop;
+import java.awt.Dimension;
+import java.awt.EventQueue;
+import java.awt.GraphicsEnvironment;
+import java.awt.Point;
+import java.awt.Robot;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -109,7 +123,6 @@ public class SDRTrunk implements Listener<TunerEvent>
     private PasswordPanel mPasswordPanel;
     private IconModel mIconModel = new IconModel();
     private PlaylistManager mPlaylistManager;
-    private SourceManager mSourceManager;
     private SettingsManager mSettingsManager;
     private SpectralDisplayPanel mSpectralPanel;
     private JFrame mMainGui = new JFrame();
@@ -117,12 +130,18 @@ public class SDRTrunk implements Listener<TunerEvent>
     private JideSplitPane mSplitPane;
     private JavaFxWindowManager mJavaFxWindowManager;
     private UserPreferences mUserPreferences = new UserPreferences();
+    private TunerManager mTunerManager;
     private ApplicationLog mApplicationLog;
 
     private String mTitle;
 
     public SDRTrunk()
     {
+        if(!GraphicsEnvironment.isHeadless())
+        {
+            mMainGui = new JFrame();
+        }
+
         mApplicationLog = new ApplicationLog(mUserPreferences);
         mApplicationLog.start();
 
@@ -160,16 +179,19 @@ public class SDRTrunk implements Listener<TunerEvent>
         //Register FontAwesome so we can use the fonts in Swing windows
         IconFontSwing.register(FontAwesome.getIconFont());
 
-        TunerConfigurationModel tunerConfigurationModel = new TunerConfigurationModel();
-        TunerModel tunerModel = new TunerModel(tunerConfigurationModel);
+        mTunerManager = new TunerManager(mUserPreferences);
+        mTunerManager.start();
 
-        mSettingsManager = new SettingsManager(tunerConfigurationModel);
-        mSourceManager = new SourceManager(tunerModel, mSettingsManager, mUserPreferences);
+        mSettingsManager = new SettingsManager();
 
         AliasModel aliasModel = new AliasModel();
         EventLogManager eventLogManager = new EventLogManager(aliasModel, mUserPreferences);
-        mPlaylistManager = new PlaylistManager(mUserPreferences, mSourceManager, aliasModel, eventLogManager, mIconModel);
-        mJavaFxWindowManager = new JavaFxWindowManager(mUserPreferences, mPlaylistManager);
+        mPlaylistManager = new PlaylistManager(mUserPreferences, mTunerManager, aliasModel, eventLogManager, mIconModel);
+
+        if(!GraphicsEnvironment.isHeadless())
+        {
+            mJavaFxWindowManager = new JavaFxWindowManager(mUserPreferences, mTunerManager, mPlaylistManager);
+        }
 
         CalibrationManager calibrationManager = CalibrationManager.getInstance(mUserPreferences);
         final boolean calibrating = !calibrationManager.isCalibrated() &&
@@ -196,42 +218,53 @@ public class SDRTrunk implements Listener<TunerEvent>
         MapService mapService = new MapService(mIconModel);
         mPlaylistManager.getChannelProcessingManager().addDecodeEventListener(mapService);
 
-        mControllerPanel = new ControllerPanel(mPlaylistManager, audioPlaybackManager, mIconModel, mapService,
-            mSettingsManager, mSourceManager, mUserPreferences);
-        
-        mPasswordPanel = new PasswordPanel(mMainGui, mPasswordGui);
+        if(!GraphicsEnvironment.isHeadless())
+        {
+            mControllerPanel = new ControllerPanel(mPlaylistManager, audioPlaybackManager, mIconModel, mapService,
+                    mSettingsManager, mTunerManager, mUserPreferences);
 
-        mSpectralPanel = new SpectralDisplayPanel(mPlaylistManager, mSettingsManager, tunerModel);
+            mPasswordPanel = new PasswordPanel(mMainGui, mPasswordGui);
+        }
+
+        mSpectralPanel = new SpectralDisplayPanel(mPlaylistManager, mSettingsManager, mTunerManager.getDiscoveredTunerModel());
 
         TunerSpectralDisplayManager tunerSpectralDisplayManager = new TunerSpectralDisplayManager(mSpectralPanel,
-            mPlaylistManager, mSettingsManager, tunerModel);
-        tunerModel.addListener(tunerSpectralDisplayManager);
-        tunerModel.addListener(this);
+            mPlaylistManager, mSettingsManager, mTunerManager.getDiscoveredTunerModel());
+        mTunerManager.getDiscoveredTunerModel().addListener(tunerSpectralDisplayManager);
+        mTunerManager.getDiscoveredTunerModel().addListener(this);
 
         mPlaylistManager.init();
 
-        mLog.info("starting main application gui");
+        if(GraphicsEnvironment.isHeadless())
+        {
+            mLog.info("starting main application headless");
+        }
+        else
+        {
+            mLog.info("starting main application gui");
 
-        //Initialize the GUI
-        initGUI();
-
-        tunerModel.requestFirstTunerDisplay();
+            //Initialize the GUI
+            initGUI();
+        }
 
         //Start the gui
         EventQueue.invokeLater(() -> {
             try
             {
+                if(!GraphicsEnvironment.isHeadless())
+                {
+                    if (!lockable) {
+                        mMainGui.setVisible(true);
+                    } else {
+                        mPasswordGui.setVisible(true);
+                    }
 
-                if (!lockable) {                    
-                    mMainGui.setVisible(true);
-                } else { 
-                    mPasswordGui.setVisible(true);
+                    // mMainGui.setVisible(true);
+                    Tuner tuner = tunerSpectralDisplayManager.showFirstTuner();
+                    updateTitle(tuner);
                 }
 
-
-                mMainGui.setVisible(true);
-
-                if(calibrating)
+                if(calibrating && !GraphicsEnvironment.isHeadless())
                 {
                     Platform.runLater(() ->
                     {
@@ -253,7 +286,6 @@ public class SDRTrunk implements Listener<TunerEvent>
                 {
                     autoStartChannels();
                 }
-
             }
             catch(Exception e)
             {
@@ -273,8 +305,25 @@ public class SDRTrunk implements Listener<TunerEvent>
 
         if(channels.size() > 0)
         {
-            ChannelAutoStartFrame autoStartFrame = new ChannelAutoStartFrame(mPlaylistManager.getChannelProcessingManager(),
-                channels);
+            if(GraphicsEnvironment.isHeadless())
+            {
+                for(Channel channel: channels)
+                {
+                    try
+                    {
+                        mLog.info("Auto-starting channel " + channel.getName());
+                        mPlaylistManager.getChannelProcessingManager().start(channel);
+                    }
+                    catch(ChannelException ce)
+                    {
+                        mLog.error("Channel: " + channel.getName() + " auto-start failed: " + ce.getMessage());
+                    }
+                }
+            }
+            else
+            {
+                new ChannelAutoStartFrame(mPlaylistManager.getChannelProcessingManager(), channels);
+            }
         }
     }
 
@@ -306,7 +355,7 @@ public class SDRTrunk implements Listener<TunerEvent>
         }
         mMainGui.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         mMainGui.addWindowListener(new ShutdownMonitor());
-        
+
         mPasswordGui.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         mPasswordGui.addWindowListener(new ShutdownMonitor());
 
@@ -358,15 +407,15 @@ public class SDRTrunk implements Listener<TunerEvent>
         }
 
         mMainGui.add(mSplitPane, "cell 0 0,span,grow");
-        
+
         Box box = new Box(BoxLayout.Y_AXIS);
         box.add(Box.createVerticalGlue());
         box.add(mPasswordPanel);
         box.add(Box.createVerticalGlue());
-        
+
         mPasswordGui.add(box);
         mPasswordPanel.init();
-        
+
 
         /**
          * Menu items
@@ -376,7 +425,7 @@ public class SDRTrunk implements Listener<TunerEvent>
 
         JMenu fileMenu = new JMenu("File");
         menuBar.add(fileMenu);
-        
+
         JMenuItem lockMenu = new JMenuItem("Lock");
         lockMenu.addActionListener(
             new ActionListener()
@@ -507,7 +556,8 @@ public class SDRTrunk implements Listener<TunerEvent>
 
         mLog.info("Stopping spectral display ...");
         mSpectralPanel.clearTuner();
-        mSourceManager.shutdown();
+        mLog.info("Stopping tuners ...");
+        mTunerManager.stop();
         mLog.info("Shutdown complete.");
         mApplicationLog.stop();
     }
@@ -624,7 +674,23 @@ public class SDRTrunk implements Listener<TunerEvent>
     {
         if(event.getEvent() == TunerEvent.Event.REQUEST_MAIN_SPECTRAL_DISPLAY)
         {
-            mMainGui.setTitle(mTitle + " - " + event.getTuner().getName());
+            updateTitle(event.getTuner());
+        }
+    }
+
+    /**
+     * Updates the title bar with the tuner name
+     * @param tuner optional
+     */
+    private void updateTitle(Tuner tuner)
+    {
+        if(tuner != null)
+        {
+            mMainGui.setTitle(mTitle + " - " + tuner.getPreferredName());
+        }
+        else
+        {
+            mMainGui.setTitle(mTitle);
         }
     }
 
@@ -674,9 +740,9 @@ public class SDRTrunk implements Listener<TunerEvent>
                 {
                     removeAll();
 
-                    for(Tuner tuner : mSourceManager.getTunerModel().getTuners())
+                    for(DiscoveredTuner discoveredTuner: mTunerManager.getAvailableTuners())
                     {
-                        add(new ShowTunerMenuItem(mSourceManager.getTunerModel(), tuner));
+                        add(new ShowTunerMenuItem(mTunerManager.getDiscoveredTunerModel(), discoveredTuner.getTuner()));
                     }
                 }
 

@@ -21,6 +21,7 @@
  */
 package io.github.dsheirer.source;
 
+import java.util.EnumSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +50,7 @@ public class SourceEvent
         NOTIFICATION_SQUELCH_THRESHOLD,
         NOTIFICATION_STOP_SAMPLE_STREAM,
         NOTIFICATION_TUNER_ID,
+        NOTIFICATION_TUNER_SHUTDOWN,
         NOTIFICATION_ERROR_STATE,
 
         REQUEST_CHANNEL_FREQUENCY_CORRECTION_CHANGE,
@@ -128,8 +130,6 @@ public class SourceEvent
         this(event, source, value, null);
     }
 
-
-
     /**
      * Event description.
      */
@@ -174,7 +174,6 @@ public class SourceEvent
     {
         return mSource;
     }
-
 
     /**
      * Sets the source associated with this event

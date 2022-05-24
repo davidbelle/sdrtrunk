@@ -1,7 +1,6 @@
 /*
- * ******************************************************************************
- * sdrtrunk
- * Copyright (C) 2014-2018 Dennis Sheirer
+ * *****************************************************************************
+ * Copyright (C) 2014-2022 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
- * *****************************************************************************
+ * ****************************************************************************
  */
 package io.github.dsheirer.audio.playback;
 
@@ -31,7 +30,6 @@ import io.github.dsheirer.preference.UserPreferences;
 import io.github.dsheirer.properties.SystemProperties;
 import io.github.dsheirer.sample.Listener;
 import io.github.dsheirer.settings.SettingsManager;
-import io.github.dsheirer.source.SourceManager;
 import io.github.dsheirer.source.mixer.MixerChannelConfiguration;
 import jiconfont.icons.font_awesome.FontAwesome;
 import jiconfont.swing.IconFontSwing;
@@ -74,7 +72,6 @@ public class AudioPanel extends JPanel implements Listener<AudioEvent>
     private IconModel mIconModel;
 
     private SettingsManager mSettingsManager;
-    private SourceManager mSourceManager;
     private IAudioController mController;
     private AliasModel mAliasModel;
     private UserPreferences mUserPreferences;
@@ -84,11 +81,10 @@ public class AudioPanel extends JPanel implements Listener<AudioEvent>
     private boolean mMuted;
 
     public AudioPanel(IconModel iconModel, UserPreferences userPreferences, SettingsManager settingsManager,
-                      SourceManager sourceManager, IAudioController controller, AliasModel aliasModel)
+                      IAudioController controller, AliasModel aliasModel)
     {
         mIconModel = iconModel;
         mSettingsManager = settingsManager;
-        mSourceManager = sourceManager;
         mController = controller;
         mAliasModel = aliasModel;
         mUserPreferences = userPreferences;

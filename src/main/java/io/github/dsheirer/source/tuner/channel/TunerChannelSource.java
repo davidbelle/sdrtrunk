@@ -31,17 +31,12 @@ import org.slf4j.LoggerFactory;
 public abstract class TunerChannelSource extends ComplexSource implements ISourceEventProcessor
 {
     private final static Logger mLog = LoggerFactory.getLogger(TunerChannelSource.class);
-    private static final long BUFFER_PROCESSOR_RUN_INTERVAL_MILLISECONDS = 50;
+    protected static final long HEARTBEAT_INTERVAL_MS = 100;
     private SourceEventListenerToProcessorAdapter mConsumerSourceEventListenerAdapter;
     protected TunerChannel mTunerChannel;
     private Listener<SourceEvent> mProducerSourceEventListener;
     private Listener<SourceEvent> mConsumerSourceEventListener;
-
-    private ScheduledIntervalProcessor mScheduledIntervalProcessor = new ScheduledIntervalProcessor();
-    private String mTunerID;
-
 //    private ScheduledIntervalProcessor mScheduledIntervalProcessor = new ScheduledIntervalProcessor();
-
 
     /**
      * Tuner Channel Source is a Digital Drop Channel (DDC) abstract class that defines the minimum functionality
@@ -63,6 +58,7 @@ public abstract class TunerChannelSource extends ComplexSource implements ISourc
         return mTunerChannel.getFrequency();
     }
 
+    private String mTunerID = "";
     public void setTunerId(String tunerID) {
         mTunerID = tunerID;
     }
@@ -130,11 +126,8 @@ public abstract class TunerChannelSource extends ComplexSource implements ISourc
         //Broadcast current frequency and sample rate so consumer can configure correctly
         broadcastConsumerSourceEvent(SourceEvent.frequencyChange(this, getFrequency(), "Startup"));
         broadcastProducerSourceEvent(SourceEvent.startSampleStreamRequest(this));
-<<<<<<< HEAD
+        // maybe we don't need this?
         broadcastConsumerSourceEvent(SourceEvent.createTunerId(this, mTunerID));
-        mScheduledIntervalProcessor.start();
-=======
->>>>>>> 0e8c9591e41cf680c8f4b4a6747692490eb442a9
     }
 
     /**
@@ -206,6 +199,7 @@ public abstract class TunerChannelSource extends ComplexSource implements ISourc
             case NOTIFICATION_SQUELCH_THRESHOLD:
             case REQUEST_CHANGE_SQUELCH_THRESHOLD:
             case REQUEST_CURRENT_SQUELCH_THRESHOLD:
+            case NOTIFICATION_TUNER_ID:
                 //Ignore
                 break;
             default:

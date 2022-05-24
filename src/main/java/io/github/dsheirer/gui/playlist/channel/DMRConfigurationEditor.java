@@ -1,23 +1,20 @@
 /*
+ * *****************************************************************************
+ * Copyright (C) 2014-2022 Dennis Sheirer
  *
- *  * ******************************************************************************
- *  * Copyright (C) 2014-2020 Dennis Sheirer
- *  *
- *  * This program is free software: you can redistribute it and/or modify
- *  * it under the terms of the GNU General Public License as published by
- *  * the Free Software Foundation, either version 3 of the License, or
- *  * (at your option) any later version.
- *  *
- *  * This program is distributed in the hope that it will be useful,
- *  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  * GNU General Public License for more details.
- *  *
- *  * You should have received a copy of the GNU General Public License
- *  * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *  * *****************************************************************************
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ * ****************************************************************************
  */
 
 package io.github.dsheirer.gui.playlist.channel;
@@ -40,6 +37,7 @@ import io.github.dsheirer.preference.UserPreferences;
 import io.github.dsheirer.record.RecorderType;
 import io.github.dsheirer.record.config.RecordConfiguration;
 import io.github.dsheirer.source.config.SourceConfiguration;
+import io.github.dsheirer.source.tuner.manager.TunerManager;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
@@ -89,18 +87,21 @@ public class DMRConfigurationEditor extends ChannelConfigurationEditor
     private TableView<TimeslotFrequency> mTimeslotFrequencyTable;
     private IntegerTextField mLogicalSlotNumberField;
     private FrequencyField mDownlinkFrequencyField;
-    //    private FrequencyField mUplinkFrequencyField;
+//    private FrequencyField mUplinkFrequencyField;
     private Button mAddTimeslotFrequencyButton;
     private Button mDeleteTimeslotFrequencyButton;
     private Spinner<Integer> mChannelRotationDelaySpinner;
 
     /**
      * Constructs an instance
-     * @param playlistManager
+     * @param playlistManager for playlists
+     * @param tunerManager for tuners
+     * @param userPreferences for preferences
      */
-    public DMRConfigurationEditor(PlaylistManager playlistManager, UserPreferences userPreferences)
+    public DMRConfigurationEditor(PlaylistManager playlistManager, TunerManager tunerManager,
+                                  UserPreferences userPreferences)
     {
-        super(playlistManager, userPreferences);
+        super(playlistManager, tunerManager, userPreferences);
         getTitledPanesBox().getChildren().add(getSourcePane());
         getTitledPanesBox().getChildren().add(getDecoderPane());
         getTitledPanesBox().getChildren().add(getEventLogPane());
@@ -240,14 +241,14 @@ public class DMRConfigurationEditor extends ChannelConfigurationEditor
     {
         if(mSourceConfigurationEditor == null)
         {
-            mSourceConfigurationEditor = new FrequencyEditor(getTunerModel(),
-                    DecodeConfigDMR.CHANNEL_ROTATION_DELAY_MINIMUM_MS,
-                    DecodeConfigDMR.CHANNEL_ROTATION_DELAY_MAXIMUM_MS,
-                    DecodeConfigDMR.CHANNEL_ROTATION_DELAY_DEFAULT_MS);
+            mSourceConfigurationEditor = new FrequencyEditor(mTunerManager,
+                DecodeConfigDMR.CHANNEL_ROTATION_DELAY_MINIMUM_MS,
+                DecodeConfigDMR.CHANNEL_ROTATION_DELAY_MAXIMUM_MS,
+                DecodeConfigDMR.CHANNEL_ROTATION_DELAY_DEFAULT_MS);
 
             //Add a listener so that we can push change notifications up to this editor
             mSourceConfigurationEditor.modifiedProperty()
-                    .addListener((observable, oldValue, newValue) -> modifiedProperty().set(true));
+                .addListener((observable, oldValue, newValue) -> modifiedProperty().set(true));
         }
 
         return mSourceConfigurationEditor;
@@ -294,7 +295,7 @@ public class DMRConfigurationEditor extends ChannelConfigurationEditor
 //            mTimeslotFrequencyTable.getColumns().addAll(uplinkColumn);
 
             mTimeslotFrequencyTable.getSelectionModel().selectedItemProperty()
-                    .addListener((observable, oldValue, newValue) -> setTimeslot(newValue));
+                .addListener((observable, oldValue, newValue) -> setTimeslot(newValue));
         }
 
         return mTimeslotFrequencyTable;
@@ -492,7 +493,7 @@ public class DMRConfigurationEditor extends ChannelConfigurationEditor
             mIgnoreDataCallsButton = new ToggleSwitch();
             mIgnoreDataCallsButton.setDisable(true);
             mIgnoreDataCallsButton.selectedProperty()
-                    .addListener((observable, oldValue, newValue) -> modifiedProperty().set(true));
+                .addListener((observable, oldValue, newValue) -> modifiedProperty().set(true));
         }
 
         return mIgnoreDataCallsButton;
@@ -505,7 +506,7 @@ public class DMRConfigurationEditor extends ChannelConfigurationEditor
             mIgnoreCRCChecksumsButton = new ToggleSwitch();
             mIgnoreCRCChecksumsButton.setDisable(true);
             mIgnoreCRCChecksumsButton.selectedProperty()
-                    .addListener((observable, oldValue, newValue) -> modifiedProperty().set(true));
+                .addListener((observable, oldValue, newValue) -> modifiedProperty().set(true));
         }
 
         return mIgnoreCRCChecksumsButton;
@@ -518,12 +519,12 @@ public class DMRConfigurationEditor extends ChannelConfigurationEditor
             mTrafficChannelPoolSizeSpinner = new Spinner();
             mTrafficChannelPoolSizeSpinner.setDisable(true);
             mTrafficChannelPoolSizeSpinner.setTooltip(
-                    new Tooltip("Maximum number of traffic channels that can be created by the decoder"));
+                new Tooltip("Maximum number of traffic channels that can be created by the decoder"));
             mTrafficChannelPoolSizeSpinner.getStyleClass().add(Spinner.STYLE_CLASS_SPLIT_ARROWS_HORIZONTAL);
             SpinnerValueFactory<Integer> svf = new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 50);
             mTrafficChannelPoolSizeSpinner.setValueFactory(svf);
             mTrafficChannelPoolSizeSpinner.getValueFactory().valueProperty()
-                    .addListener((observable, oldValue, newValue) -> modifiedProperty().set(true));
+                .addListener((observable, oldValue, newValue) -> modifiedProperty().set(true));
         }
 
         return mTrafficChannelPoolSizeSpinner;
@@ -541,12 +542,12 @@ public class DMRConfigurationEditor extends ChannelConfigurationEditor
             mChannelRotationDelaySpinner = new Spinner();
             mChannelRotationDelaySpinner.setDisable(true);
             mChannelRotationDelaySpinner.setTooltip(
-                    new Tooltip("Delay on each frequency before rotating to next when seeking to next active channel frequency"));
+                new Tooltip("Delay on each frequency before rotating to next when seeking to next active channel frequency"));
             mChannelRotationDelaySpinner.getStyleClass().add(Spinner.STYLE_CLASS_SPLIT_ARROWS_HORIZONTAL);
             SpinnerValueFactory<Integer> svf = new SpinnerValueFactory.IntegerSpinnerValueFactory(200, 2000, 200, 50);
             mChannelRotationDelaySpinner.setValueFactory(svf);
             mChannelRotationDelaySpinner.getValueFactory().valueProperty()
-                    .addListener((observable, oldValue, newValue) -> modifiedProperty().set(true));
+                .addListener((observable, oldValue, newValue) -> modifiedProperty().set(true));
         }
 
         return mChannelRotationDelaySpinner;
@@ -566,7 +567,7 @@ public class DMRConfigurationEditor extends ChannelConfigurationEditor
             mRecordConfigurationEditor = new RecordConfigurationEditor(types);
             mRecordConfigurationEditor.setDisable(true);
             mRecordConfigurationEditor.modifiedProperty()
-                    .addListener((observable, oldValue, newValue) -> modifiedProperty().set(true));
+                .addListener((observable, oldValue, newValue) -> modifiedProperty().set(true));
         }
 
         return mRecordConfigurationEditor;

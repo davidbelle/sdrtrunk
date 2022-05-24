@@ -1,6 +1,6 @@
 package io.github.dsheirer.gui.instrument;
 
-import com.sun.glass.ui.Application;
+// import com.sun.glass.ui.Application;
 import io.github.dsheirer.dsp.filter.design.FilterViewer;
 
 public class DemodVFXWrapper {

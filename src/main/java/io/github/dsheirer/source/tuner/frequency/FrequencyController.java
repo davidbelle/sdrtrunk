@@ -1,7 +1,6 @@
 /*
- * ******************************************************************************
- * sdrtrunk
- * Copyright (C) 2014-2019 Dennis Sheirer
+ * *****************************************************************************
+ * Copyright (C) 2014-2022 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
- * *****************************************************************************
+ * ****************************************************************************
  */
 package io.github.dsheirer.source.tuner.frequency;
 
@@ -26,8 +25,9 @@ import io.github.dsheirer.source.SourceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class FrequencyController
 {
@@ -36,20 +36,30 @@ public class FrequencyController
     private Tunable mTunable;
     private long mFrequency = 101100000;
     private long mTunedFrequency = 101100000;
-    private long mMinimumFrequency;
-    private long mMaximumFrequency;
+    private long mMinimumFrequency = 0;
+    private long mMaximumFrequency = 0;
     private double mFrequencyCorrection = 0.0d;
     private double mSampleRate = 0.0d;
     private boolean mLocked = false;
+    private List<ISourceEventProcessor> mProcessors = new ArrayList<>();
+    private ReentrantLock mLock = new ReentrantLock();
 
-    private List<ISourceEventProcessor> mProcessors = new CopyOnWriteArrayList<>();
-
-    public FrequencyController(Tunable tunable, long minFrequency, long maxFrequency, double frequencyCorrection)
+    /**
+     * Constructs an instance
+     * @param tunable that can be controlled by this frequency controller.
+     */
+    public FrequencyController(Tunable tunable)
     {
         mTunable = tunable;
-        mMinimumFrequency = minFrequency;
-        mMaximumFrequency = maxFrequency;
-        mFrequencyCorrection = frequencyCorrection;
+    }
+
+    /**
+     * Prepare for disposal of this instance.
+     */
+    public void dispose()
+    {
+        mProcessors.clear();
+        mTunable = null;
     }
 
     /**
@@ -193,14 +203,40 @@ public class FrequencyController
         return mTunedFrequency;
     }
 
+    /**
+     * Minimum tunable frequency
+     * @return minimum in Hertz
+     */
     public long getMinimumFrequency()
     {
         return mMinimumFrequency;
     }
 
+    /**
+     * Sets the minimum tunable frequency
+     * @param minimum in Hertz
+     */
+    public void setMinimumFrequency(long minimum)
+    {
+        mMaximumFrequency = minimum;
+    }
+
+    /**
+     * Maximum tunable frequency
+     * @return maximum frequency in Hertz
+     */
     public long getMaximumFrequency()
     {
         return mMaximumFrequency;
+    }
+
+    /**
+     * Sets the maximum tunable frequency
+     * @param maximum in Hertz
+     */
+    public void setMaximumFrequency(long maximum)
+    {
+        mMaximumFrequency = maximum;
     }
 
     /**
@@ -250,9 +286,18 @@ public class FrequencyController
      */
     public void addListener(ISourceEventProcessor processor)
     {
-        if(!mProcessors.contains(processor))
+        mLock.lock();
+
+        try
         {
-            mProcessors.add(processor);
+            if(!mProcessors.contains(processor))
+            {
+                mProcessors.add(processor);
+            }
+        }
+        finally
+        {
+            mLock.unlock();
         }
     }
 
@@ -261,7 +306,16 @@ public class FrequencyController
      */
     public void removeFrequencyChangeProcessor(ISourceEventProcessor processor)
     {
-        mProcessors.remove(processor);
+        mLock.lock();
+
+        try
+        {
+            mProcessors.remove(processor);
+        }
+        finally
+        {
+            mLock.unlock();
+        }
     }
 
 
@@ -292,9 +346,18 @@ public class FrequencyController
 
     public void broadcast(SourceEvent event) throws SourceException
     {
-        for(ISourceEventProcessor processor : mProcessors)
+        mLock.lock();
+
+        try
         {
-            processor.process(event);
+            for(ISourceEventProcessor processor : mProcessors)
+            {
+                processor.process(event);
+            }
+        }
+        finally
+        {
+            mLock.unlock();
         }
     }
 
@@ -304,21 +367,21 @@ public class FrequencyController
         /**
          * Gets the tuned frequency of the device
          */
-        public long getTunedFrequency() throws SourceException;
+        long getTunedFrequency() throws SourceException;
 
         /**
          * Sets the tuned frequency of the device
          */
-        public void setTunedFrequency(long frequency) throws SourceException;
+        void setTunedFrequency(long frequency) throws SourceException;
 
         /**
          * Gets the current bandwidth setting of the device
          */
-        public double getCurrentSampleRate() throws SourceException;
+        double getCurrentSampleRate() throws SourceException;
 
         /**
          * Indicates if this tunable can tune the frequency
          */
-        public boolean canTune(long frequency);
+        boolean canTune(long frequency);
     }
 }

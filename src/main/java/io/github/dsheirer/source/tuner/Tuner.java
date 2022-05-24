@@ -27,13 +27,14 @@ import io.github.dsheirer.sample.Broadcaster;
 import io.github.dsheirer.sample.Listener;
 import io.github.dsheirer.source.ISourceEventProcessor;
 import io.github.dsheirer.source.SourceEvent;
+import io.github.dsheirer.source.SourceException;
 import io.github.dsheirer.source.tuner.TunerEvent.Event;
 import io.github.dsheirer.source.tuner.manager.ChannelSourceManager;
 import io.github.dsheirer.source.tuner.manager.HeterodyneChannelSourceManager;
 import io.github.dsheirer.source.tuner.manager.PolyphaseChannelSourceManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Tuner provides an interface to a software or hardware tuner controller that provides I/Q sample data coupled with a
  * channel source manager to provide access to Digital Drop Channel (DDC) resources.
@@ -48,14 +49,16 @@ public abstract class Tuner implements ISourceEventProcessor, ITunerErrorListene
     private TunerFrequencyErrorMonitor mTunerFrequencyErrorMonitor;
     protected String mName;
     private String mErrorMessage;
+    private ITunerErrorListener mTunerErrorListener;
+    private AtomicBoolean mRunning = new AtomicBoolean();
 
-    public Tuner(String name, TunerController tunerController)
+    public Tuner(String name, TunerController tunerController, ITunerErrorListener tunerErrorListener)
     {
         mName = name;
         mTunerController = tunerController;
+        mTunerErrorListener = tunerErrorListener;
         //Register to receive frequency and sample rate change notifications
         mTunerController.addListener(this::process);
-        mTunerController.setTunerErrorListener(this);
         mTunerFrequencyErrorMonitor = new TunerFrequencyErrorMonitor(this);
         mTunerFrequencyErrorMonitor.start();
     }
@@ -64,13 +67,13 @@ public abstract class Tuner implements ISourceEventProcessor, ITunerErrorListene
      * Abstract tuner class.
      * @param name of the tuner
      * @param tunerController for the tuner
-     * @param userPreferences to discover preferred channelizer type
+     * @param tunerErrorListener to listen for tuner errors
+     * @param channelizerType for the channelizer
      */
-    public Tuner(String name, TunerController tunerController, UserPreferences userPreferences)
+    public Tuner(String name, TunerController tunerController, ITunerErrorListener tunerErrorListener, ChannelizerType channelizerType)
     {
-        this(name, tunerController);
+        this(name, tunerController,tunerErrorListener);
 
-        ChannelizerType channelizerType = userPreferences.getTunerPreference().getChannelizerType();
         if(channelizerType == ChannelizerType.POLYPHASE)
         {
             setChannelSourceManager(new PolyphaseChannelSourceManager(mTunerController,mName));
@@ -86,6 +89,74 @@ public abstract class Tuner implements ISourceEventProcessor, ITunerErrorListene
     }
 
     /**
+     * Perform startup operations
+     * @throws SourceException if there is an error that makes this tuner unusable
+     */
+    public void start() throws SourceException
+    {
+        if(mRunning.compareAndSet(false, true))
+        {
+            try
+            {
+                getTunerController().start();
+            }
+            catch(SourceException se)
+            {
+                mRunning.set(false);
+                //Rethrow the source exception
+                throw se;
+            }
+            catch(Exception e)
+            {
+                mRunning.set(false);
+                //Wrap any other exceptions in a new source exception
+                mLog.error("Error starting " + getTunerClass() + " tuner", e);
+                throw new SourceException("Unable to start " + getTunerClass() + " tuner", e);
+            }
+        }
+    }
+
+    /**
+     * Perform shutdown and disposal operations.
+     */
+    public void stop()
+    {
+        if(mRunning.compareAndSet(true, false))
+        {
+            broadcast(new TunerEvent(this, Event.NOTIFICATION_SHUTTING_DOWN));
+
+            if(getChannelSourceManager() != null)
+            {
+                getChannelSourceManager().stopAllChannels();
+                getChannelSourceManager().dispose();
+                mChannelSourceManager = null;
+            }
+
+            getTunerController().stop();
+            getTunerController().dispose();
+
+            mTunerEventBroadcaster.clear();
+            mTunerFrequencyErrorMonitor = null;
+            mTunerErrorListener = null;
+        }
+    }
+
+    /**
+     * Sets an unrecoverable error state for this tuner and propagates the error to an external listener
+     * @param errorMessage to set
+     */
+    @Override
+    public void setErrorMessage(String errorMessage)
+    {
+        broadcast(new TunerEvent(this, Event.NOTIFICATION_ERROR_STATE));
+
+        if(mTunerErrorListener != null)
+        {
+            mTunerErrorListener.setErrorMessage(errorMessage);
+        }
+    }
+
+    /**
      * Sets the channel source manager
      * @param manager to use
      */
@@ -95,18 +166,6 @@ public abstract class Tuner implements ISourceEventProcessor, ITunerErrorListene
 
         //Register to receive channel count change notifications
         mChannelSourceManager.addSourceEventListener(this::process);
-    }
-
-    /**
-     * Sets this tuner to an error state with the errorMessage description.
-     * @param errorMessage describing the error state
-     */
-    public void setErrorMessage(String errorMessage)
-    {
-        mLog.info("[" + getName() + "] tuner is now disabled for error [" + errorMessage + "]");
-        mErrorMessage = errorMessage;
-        broadcast(new TunerEvent(this, Event.ERROR_STATE));
-        getChannelSourceManager().setErrorMessage(errorMessage);
     }
 
     /**
@@ -137,20 +196,20 @@ public abstract class Tuner implements ISourceEventProcessor, ITunerErrorListene
         switch(event.getEvent())
         {
             case NOTIFICATION_CHANNEL_COUNT_CHANGE:
-                broadcast(new TunerEvent(Tuner.this, Event.CHANNEL_COUNT));
+                broadcast(new TunerEvent(Tuner.this, Event.UPDATE_CHANNEL_COUNT));
                 break;
             case NOTIFICATION_FREQUENCY_CHANGE:
-                broadcast(new TunerEvent(Tuner.this, Event.FREQUENCY_UPDATED));
+                broadcast(new TunerEvent(Tuner.this, Event.UPDATE_FREQUENCY));
                 break;
             case NOTIFICATION_FREQUENCY_CORRECTION_CHANGE:
-                broadcast(new TunerEvent(Tuner.this, Event.FREQUENCY_ERROR_UPDATED));
+                broadcast(new TunerEvent(Tuner.this, Event.UPDATE_FREQUENCY_ERROR));
                 break;
             case NOTIFICATION_SAMPLE_RATE_CHANGE:
-                broadcast(new TunerEvent(Tuner.this, Event.SAMPLE_RATE_UPDATED));
+                broadcast(new TunerEvent(Tuner.this, Event.UPDATE_SAMPLE_RATE));
                 break;
             case NOTIFICATION_FREQUENCY_AND_SAMPLE_RATE_LOCKED:
             case NOTIFICATION_FREQUENCY_AND_SAMPLE_RATE_UNLOCKED:
-                broadcast(new TunerEvent(Tuner.this, Event.LOCK_STATE_CHANGE));
+                broadcast(new TunerEvent(Tuner.this, Event.UPDATE_LOCK_STATE));
                 break;
             case NOTIFICATION_MEASURED_FREQUENCY_ERROR_SYNC_LOCKED:
                 mTunerFrequencyErrorMonitor.receive(event);
@@ -185,17 +244,8 @@ public abstract class Tuner implements ISourceEventProcessor, ITunerErrorListene
      */
     public String toString()
     {
-        return mName + (hasError() ? mErrorMessage : "");
+        return getPreferredName();
     }
-
-    /**
-     * Dispose and prepare for shutdown
-     */
-    public void dispose()
-    {
-        getTunerController().dispose();
-    }
-
     /**
      * Sets the name for this tuner
      */
@@ -203,7 +253,6 @@ public abstract class Tuner implements ISourceEventProcessor, ITunerErrorListene
     {
         mName = name;
     }
-
     /**
      * Unique identifier for this tuner, used to lookup a tuner configuration from the settings manager.
      *
@@ -220,17 +269,17 @@ public abstract class Tuner implements ISourceEventProcessor, ITunerErrorListene
     /**
      * @return - tuner type enum entry
      */
-    public abstract TunerType getTunerType();
+    public TunerType getTunerType()
+    {
+        return getTunerController().getTunerType();
+    }
 
     /**
-     * Name of this tuner object
+     * Preferred name for this.  This should be unique and will be used to find this tuner (e.g. channel preferred tuner)
      *
      * @return - string name of this tuner object
      */
-    public String getName()
-    {
-        return mName;
-    }
+    public abstract String getPreferredName();
 
     /**
      * Sample size in bits
@@ -240,7 +289,7 @@ public abstract class Tuner implements ISourceEventProcessor, ITunerErrorListene
     /**
      * Registers the listener
      */
-    public void addTunerChangeListener(Listener<TunerEvent> listener)
+    public void addTunerEventListener(Listener<TunerEvent> listener)
     {
         mTunerEventBroadcaster.addListener(listener);
     }
@@ -248,7 +297,7 @@ public abstract class Tuner implements ISourceEventProcessor, ITunerErrorListene
     /**
      * Removes the registered listener
      */
-    public void removeTunerChangeListener(Listener<TunerEvent> listener)
+    public void removeTunerEventListener(Listener<TunerEvent> listener)
     {
         mTunerEventBroadcaster.removeListener(listener);
     }

@@ -31,6 +31,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.SortedSet;
 
+/**
+ * PolyphaseChannelSourceManager is responsible for managing the tuner's center tuned frequency and providing access to
+ * polyphase tuner channel sources (ie DDCs).  This class is responsible for determining IF a requested channel can
+ * be provided and then adjusting the center frequency and provisioning a DDC Polyphase Tuner channel source.
+ */
 public class PolyphaseChannelSourceManager extends ChannelSourceManager
 {
     private final static Logger mLog = LoggerFactory.getLogger(PolyphaseChannelSourceManager.class);
@@ -39,10 +44,7 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
     private String mTunerId;
 
     /**
-     * PolyphaseChannelSourceManager is responsible for managing the tuner's center tuned frequency and providing access to
-     * polyphase tuner channel sources (ie DDCs).  This class is responsible for determining IF a requested channel can
-     * be provided and then adjusting the center frequency and provisioning a DDC Polyphase Tuner channel source.
-     *
+     * Constructs an instance
      * @param tunerController with a center tuned frequency that will be managed by this instance
      */
     public PolyphaseChannelSourceManager(TunerController tunerController, String tunerId)
@@ -55,6 +57,12 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
         mPolyphaseChannelManager.addSourceEventListener(this::process);
         mTunerController.addListener(mPolyphaseChannelManager);
 
+    }
+
+    @Override
+    public void stopAllChannels()
+    {
+        mPolyphaseChannelManager.stopAllChannels();
     }
 
     /**
@@ -436,7 +444,7 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
 
                     //If we're successful to here, allocate the channel
 
-                    return mPolyphaseChannelManager.getChannel(tunerChannel, channelSpecification, mTunerId);
+                    return mPolyphaseChannelManager.getChannel(tunerChannel, mTunerId);
 
                 }
                 catch(SourceException se)
