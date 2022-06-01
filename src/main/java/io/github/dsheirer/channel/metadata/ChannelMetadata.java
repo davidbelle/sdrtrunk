@@ -363,6 +363,10 @@ public class ChannelMetadata implements Listener<IdentifierUpdateNotification>, 
                         broadcastUpdate(ChannelMetadataField.DECODER_CHANNEL_NAME);
                         break;
                     case STATE:
+                        if (mChannelStateIdentifier == ChannelStateIdentifier.CONTROL && (ChannelStateIdentifier)identifier == ChannelStateIdentifier.IDLE){
+                            mLog.debug("Channel changing from control to idle");
+                        }
+
                         if(identifier instanceof ChannelStateIdentifier && (update.isAdd() || update.isSilentAdd()))
                         {
                             mChannelStateIdentifier = (ChannelStateIdentifier)identifier;

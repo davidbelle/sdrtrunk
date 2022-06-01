@@ -746,5 +746,15 @@ public abstract class USBTunerController extends TunerController
                 }
             }
         }
+
+
+    }
+
+    public int getBus() {
+        return mBus;
+    }
+
+    public String getPortAddress() {
+        return mPortAddress;
     }
 }

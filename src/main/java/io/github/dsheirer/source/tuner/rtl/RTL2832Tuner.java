@@ -43,7 +43,7 @@ public class RTL2832Tuner extends Tuner
     public RTL2832Tuner(RTL2832TunerController controller, ITunerErrorListener tunerErrorListener,
                         ChannelizerType channelizerType)
     {
-        super(controller.getTunerType().getLabel(), controller, tunerErrorListener, channelizerType);
+    super("0", controller, tunerErrorListener, channelizerType);
     }
 
     public RTL2832TunerController getController()
@@ -76,6 +76,14 @@ public class RTL2832Tuner extends Tuner
         //actual noise floor.
         return 11.0;
     }
+
+    @Override
+    public void start() throws SourceException {
+        super.start();
+        mName = getController().getDescriptor().getSerial();
+        getChannelSourceManager().setTunerName(mName);
+    }
+
 
     @Override
     public int getMaximumUSBBitsPerSecond()

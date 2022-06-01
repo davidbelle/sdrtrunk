@@ -41,7 +41,7 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
     private final static Logger mLog = LoggerFactory.getLogger(PolyphaseChannelSourceManager.class);
     private PolyphaseChannelManager mPolyphaseChannelManager;
     private TunerController mTunerController;
-    private String mTunerId;
+
 
     /**
      * Constructs an instance
@@ -491,4 +491,6 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
                 break;
         }
     }
+
+
 }

@@ -36,7 +36,7 @@ import java.util.List;
  * radio identifiers.
  */
 @JsonRootName("mbe_call")
-@JsonPropertyOrder({"protocol", "call_type", "from", "to","encrypted", "call_type","system","site","tuner_id","frames"})
+@JsonPropertyOrder({"protocol", "call_type", "from", "to","encrypted", "terminated", "call_type","system","site","tuner_id","frames"})
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class MBECallSequence
 {
@@ -52,6 +52,8 @@ public class MBECallSequence
     private IEncryptionSyncParameters mTemporaryEncryptionSyncParameters;
     private String mTunerId = "";
 
+    private Boolean mTerminated = false;
+
     /**
      * Constructs a call sequence
      */
@@ -64,6 +66,11 @@ public class MBECallSequence
     {
         //no-arg constructor for faster jackson deserialization
     }
+
+    @JsonProperty("terminated")
+    public Boolean getTerminated() { return mTerminated; }
+    public void setTerminated(Boolean terminated) {mTerminated = terminated; }
+
 
     /**
      * Protocol/format for the voice frames

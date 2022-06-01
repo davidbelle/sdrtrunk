@@ -252,6 +252,7 @@ public class TunerManager implements IDiscoveredTunerStatusListener
                 //Attempt to start the discovered tuner and determine the tuner type
                 discoveredUSBTuner.start();
 
+
                 if(discoveredUSBTuner.hasTuner())
                 {
                     TunerType tunerType = discoveredUSBTuner.getTuner().getTunerType();

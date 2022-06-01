@@ -38,11 +38,13 @@ public class DiscoveredUSBTuner extends DiscoveredTuner
     private String mPortAddress;
     private ChannelizerType mChannelizerType;
 
+
     /**
      * Constructs an instance
      * @param bus (USB) number
      * @param portAddress (USB)
      * @param channelizerType to use with the tuner
+     * @param id (int)
      */
     public DiscoveredUSBTuner(TunerClass tunerClass, int bus, String portAddress, ChannelizerType channelizerType)
     {

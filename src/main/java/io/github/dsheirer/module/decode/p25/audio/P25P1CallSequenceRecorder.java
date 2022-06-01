@@ -88,6 +88,9 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
     @Override
     public void stop()
     {
+        if(mCallSequence != null) {
+            mLog.debug(Thread.currentThread().getId() + " (T"+mTunerId+") Stop() has been called");
+        }
         flush();
     }
 
@@ -114,6 +117,7 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
      */
     public void flush()
     {
+
         if(mCallSequence != null)
         {
             if (mTunerId != "") {
@@ -139,7 +143,7 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
         }
         else if(message instanceof TDUMessage)
         {
-            flush();
+            process((TDUMessage) message);
         }
     }
 
@@ -180,6 +184,14 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
             baseTimestamp += 20;
         }
 
+    }
+
+    private void process(TDUMessage message){
+
+        if (mCallSequence != null){;
+            mCallSequence.setTerminated(true);
+        }
+        flush();
     }
 
     private void process(LinkControlWord lcw)
@@ -230,6 +242,7 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
                 case MOTOROLA_TALK_COMPLETE:
                     if (mTunerId != "") {
                         mCallSequence.setTuner(mTunerId);
+                        mCallSequence.setTerminated(true);
                     }
                     writeCallSequence(mCallSequence);
                     mCallSequence = null;

@@ -109,6 +109,8 @@ public abstract class MBECallSequenceRecorder extends Module implements IMessage
     {
         if(sequence != null && sequence.hasAudio())
         {
+
+
             sequence.setSystem(mSystem);
             sequence.setSite(mSite);
 

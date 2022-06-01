@@ -166,6 +166,10 @@ public class StateMachine
                     broadcast(ChannelStateIdentifier.FADE);
                     break;
                 case IDLE:
+                    if (mState == State.CONTROL){
+                        // IDLE TO CONTROL detected
+                        mLog.debug("Idle to Control detected");
+                    }
                     mState = state;
                     broadcast(ChannelStateIdentifier.IDLE);
                     break;

@@ -52,7 +52,7 @@ public class HeterodyneChannelSourceManager extends ChannelSourceManager
     private TunerController mTunerController;
     private ChannelSourceEventProcessor mChannelSourceEventProcessor = new ChannelSourceEventProcessor();
     private NativeSampleDelayBuffer mSampleDelayBuffer;
-    private String mTunerId;
+
 
     private boolean mRunning = true;
 
@@ -317,5 +317,9 @@ public class HeterodyneChannelSourceManager extends ChannelSourceManager
                     break;
             }
         }
+    }
+
+    public void setTunerName(String name){
+        mTunerId = name;
     }
 }

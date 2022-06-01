@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 public abstract class ChannelSourceManager implements ISourceEventProcessor
 {
     private Logger mLogger = LoggerFactory.getLogger(ChannelSourceManager.class);
+    protected String mTunerId;
 
     private Broadcaster<SourceEvent> mSourceEventBroadcaster = new Broadcaster<>();
 
@@ -104,5 +105,9 @@ public abstract class ChannelSourceManager implements ISourceEventProcessor
     protected void broadcast(SourceEvent sourceEvent)
     {
         mSourceEventBroadcaster.broadcast(sourceEvent);
+    }
+
+    public void setTunerName(String name){
+        mTunerId = name;
     }
 }
