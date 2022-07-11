@@ -37,6 +37,7 @@ import io.github.dsheirer.identifier.decoder.ChannelStateIdentifier;
 import io.github.dsheirer.identifier.decoder.DecoderLogicalChannelNameIdentifier;
 import io.github.dsheirer.sample.Listener;
 import io.github.dsheirer.channel.state.State;
+import io.github.dsheirer.source.tuner.TunerIdleEventFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -364,7 +365,11 @@ public class ChannelMetadata implements Listener<IdentifierUpdateNotification>, 
                         break;
                     case STATE:
                         if (mChannelStateIdentifier == ChannelStateIdentifier.CONTROL && (ChannelStateIdentifier)identifier == ChannelStateIdentifier.IDLE){
-                            mLog.debug("Channel changing from control to idle");
+                            CreateTunerIdleEventFile();
+                        } else {
+                            if (mChannelStateIdentifier != null && mChannelStateIdentifier instanceof ChannelStateIdentifier && identifier instanceof ChannelStateIdentifier){
+                                mLog.debug((mChannelNameConfigurationIdentifier != null ? mChannelNameConfigurationIdentifier.toString() : "") + " from " + mChannelStateIdentifier.getValue().name() + " to " + ((ChannelStateIdentifier)identifier).getValue().name());
+                            }
                         }
 
                         if(identifier instanceof ChannelStateIdentifier && (update.isAdd() || update.isSilentAdd()))
@@ -412,5 +417,9 @@ public class ChannelMetadata implements Listener<IdentifierUpdateNotification>, 
                 }
                 break;
         }
+    }
+
+    private void CreateTunerIdleEventFile() {mLog.debug("Channel changing from control to idle");
+        TunerIdleEventFile.create();
     }
 }

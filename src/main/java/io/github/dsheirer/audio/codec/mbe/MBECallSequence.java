@@ -36,7 +36,7 @@ import java.util.List;
  * radio identifiers.
  */
 @JsonRootName("mbe_call")
-@JsonPropertyOrder({"protocol", "call_type", "from", "to","encrypted", "terminated", "call_type","system","site","tuner_id","frames"})
+@JsonPropertyOrder({"protocol", "call_type", "from", "to","encrypted", "terminated", "call_type","system","site","tuner_id","lowspeeddata","hostname","frames"})
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class MBECallSequence
 {
@@ -54,6 +54,10 @@ public class MBECallSequence
 
     private Boolean mTerminated = false;
 
+    private String mLowSpeedData = "";
+
+    private String mHostname = "";
+
     /**
      * Constructs a call sequence
      */
@@ -70,6 +74,10 @@ public class MBECallSequence
     @JsonProperty("terminated")
     public Boolean getTerminated() { return mTerminated; }
     public void setTerminated(Boolean terminated) {mTerminated = terminated; }
+
+    @JsonProperty("hostname")
+    public String getHostname() { return mHostname; }
+    public void setHostname(String value) {mHostname = value; }
 
 
     /**
@@ -113,6 +121,15 @@ public class MBECallSequence
     public void setEncrypted(boolean encrypted)
     {
         mEncrypted = encrypted;
+    }
+
+    public void setLowSpeedData(String lowSpeedData){
+        mLowSpeedData = lowSpeedData;
+    }
+
+    @JsonProperty("lowspeeddata")
+    public String getLowSpeedData() {
+        return mLowSpeedData;
     }
 
     /**

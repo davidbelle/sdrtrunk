@@ -146,6 +146,7 @@ public abstract class USBTunerController extends TunerController
      */
     public final void start() throws SourceException
     {
+        mLog.debug("USBTuner Controller started");
         if(mDeviceContext == null)
         {
             throw new SourceException("Device cannot be reused once it has been shutdown");
@@ -252,6 +253,7 @@ public abstract class USBTunerController extends TunerController
 
         try
         {
+            mLog.debug("USBTuner Controller called deviceStart");
             deviceStart();
         }
         catch(Exception se)

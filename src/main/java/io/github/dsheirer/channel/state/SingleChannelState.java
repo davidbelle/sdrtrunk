@@ -156,6 +156,10 @@ public class SingleChannelState extends AbstractChannelState implements IDecoder
         switch(state)
         {
             case IDLE:
+                if (mStateMachine.getState() == State.CONTROL){
+                    mLog.debug("IDLE State detected for " + mStateMachine.getState().name());
+                }
+
                 broadcast(new DecoderStateEvent(this, Event.REQUEST_RESET, State.IDLE));
                 break;
             case RESET:
@@ -280,6 +284,9 @@ public class SingleChannelState extends AbstractChannelState implements IDecoder
     @Override
     public void reset()
     {
+        if (mStateMachine.getState() == State.CONTROL){
+            mLog.debug("IDLE State reset detected for " + mStateMachine.getState().name());
+        }
         mStateMachine.setState(State.RESET);
         broadcast(new DecoderStateEvent(this, Event.REQUEST_RESET, State.IDLE));
         mIdentifierCollection.remove(IdentifierClass.USER);

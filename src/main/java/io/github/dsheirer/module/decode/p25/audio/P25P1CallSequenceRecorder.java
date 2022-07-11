@@ -33,6 +33,7 @@ import io.github.dsheirer.identifier.patch.PatchGroup;
 import io.github.dsheirer.identifier.talkgroup.TalkgroupIdentifier;
 import io.github.dsheirer.message.IMessage;
 import io.github.dsheirer.module.decode.p25.phase1.message.P25Message;
+import io.github.dsheirer.module.decode.p25.phase1.message.hdu.HDUMessage;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.LinkControlWord;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaPatchGroupVoiceChannelUpdate;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaPatchGroupVoiceChannelUser;
@@ -54,6 +55,8 @@ import io.github.dsheirer.source.ISourceEventListener;
 import io.github.dsheirer.source.SourceEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.html.HTMLDirectoryElement;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -88,9 +91,6 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
     @Override
     public void stop()
     {
-        if(mCallSequence != null) {
-            mLog.debug(Thread.currentThread().getId() + " (T"+mTunerId+") Stop() has been called");
-        }
         flush();
     }
 
@@ -146,6 +146,7 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
             process((TDUMessage) message);
         }
     }
+
 
     private void process(TDULinkControlMessage tdulc)
     {
@@ -285,11 +286,15 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
 
     private void process(LDU1Message ldu1Message)
     {
+        mCallSequence.setLowSpeedData(ldu1Message.getLowSpeedData());
         process(ldu1Message.getLinkControlWord());
     }
 
     private void process(LDU2Message ldu2Message)
     {
+        mCallSequence.setLowSpeedData(ldu2Message.getLowSpeedData());
+
+
         EncryptionSyncParameters parameters = ldu2Message.getEncryptionSyncParameters();
 
         if(parameters.isValid() && parameters.isEncryptedAudio())

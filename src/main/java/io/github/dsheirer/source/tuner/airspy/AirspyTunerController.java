@@ -113,6 +113,7 @@ public class AirspyTunerController extends USBTunerController
     @Override
     protected void deviceStart() throws SourceException
     {
+        mLog.debug("Starting airspy device");
         try
         {
             setSamplePacking(false);
@@ -150,6 +151,18 @@ public class AirspyTunerController extends USBTunerController
         {
             mLog.error("Setting sample rate is not supported by firmware", e);
         }
+
+        try {
+            updateDetails();
+        } catch (Exception e){
+            mLog.error("Error updating details after start",e);
+        }
+
+
+    }
+
+    private void updateDetails() {
+        readDeviceInfo();
     }
 
     @Override
@@ -233,25 +246,19 @@ public class AirspyTunerController extends USBTunerController
     @Override
     public synchronized void setTunedFrequency(long frequency) throws SourceException
     {
-        if(FREQUENCY_MIN <= frequency && frequency <= FREQUENCY_MAX)
-        {
+        if (FREQUENCY_MIN <= frequency && frequency <= FREQUENCY_MAX) {
             ByteBuffer buffer = ByteBuffer.allocateDirect(4);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
             buffer.putInt((int) frequency);
             buffer.rewind();
 
-            try
-            {
+            try {
                 write(Command.SET_FREQUENCY, 0, 0, buffer);
-            }
-            catch(UsbException e)
-            {
+            } catch (UsbException e) {
                 mLog.error("error setting frequency [" + frequency + "]", e);
                 throw new SourceException("error setting frequency [" + frequency + "]", e);
             }
-        }
-        else
-        {
+        } else {
             throw new SourceException("Frequency [" + frequency + "] outside " + "of tunable range " + FREQUENCY_MIN + "-" + FREQUENCY_MAX);
         }
     }
@@ -372,12 +379,11 @@ public class AirspyTunerController extends USBTunerController
      */
     public synchronized void setMixerAGC(boolean enabled) throws LibUsbException, UsbException
     {
-        int result = readByte(Command.SET_MIXER_AGC, 0, (enabled ? 1 : 0), true);
+            int result = readByte(Command.SET_MIXER_AGC, 0, (enabled ? 1 : 0), true);
 
-        if(result != LibUsb.SUCCESS)
-        {
-            throw new UsbException("Couldnt set mixer AGC enabled: " + enabled);
-        }
+            if (result != LibUsb.SUCCESS) {
+                throw new UsbException("Couldnt set mixer AGC enabled: " + enabled);
+            }
     }
 
     /**
@@ -443,7 +449,7 @@ public class AirspyTunerController extends USBTunerController
      * @throws UsbException             on error in USB transfer
      * @throws IllegalArgumentException if gain value is invalid
      */
-    public void setMixerGain(int gain) throws LibUsbException, UsbException, IllegalArgumentException
+    public synchronized void setMixerGain(int gain) throws LibUsbException, UsbException, IllegalArgumentException
     {
         if(MIXER_GAIN_MIN <= gain && gain <= MIXER_GAIN_MAX)
         {
@@ -507,12 +513,13 @@ public class AirspyTunerController extends USBTunerController
         //rate is supported
         try
         {
+            mLog.debug("Determine available sample count");
             byte[] rawCount = readArray(Command.GET_SAMPLE_RATES, 0, 0, 4);
 
             if(rawCount != null)
             {
                 int count = EndianUtils.readSwappedInteger(rawCount, 0);
-
+                mLog.debug("Determine available sample rates");
                 byte[] rawRates = readArray(Command.GET_SAMPLE_RATES, 0,
                     count, (count * 4));
 
@@ -525,6 +532,7 @@ public class AirspyTunerController extends USBTunerController
         }
         catch(LibUsbException e)
         {
+            mLog.error("LibUsbException in getting available sample rates",e);
             //Press on, nothing else to do here ..
         }
 
@@ -582,6 +590,7 @@ public class AirspyTunerController extends USBTunerController
         {
             //NOTE: libairspy is internally reading 127 bytes, however airspy_info script is telling it to read
             //255 bytes ... things that make you go hmmmm
+            mLog.debug("Determine version");
             byte[] version = readArray(Command.VERSION_STRING_READ, 0, 0, 127);
             mDeviceInfo.setVersion(version);
         }
@@ -594,6 +603,7 @@ public class AirspyTunerController extends USBTunerController
         try
         {
             //Read 6 x 32-bit integers = 24 bytes
+            mLog.debug("Determine board part");
             byte[] serial = readArray(Command.BOARD_PART_ID_SERIAL_NUMBER_READ, 0, 0, 24);
             mDeviceInfo.setPartAndSerialNumber(serial);
         }
@@ -657,6 +667,7 @@ public class AirspyTunerController extends USBTunerController
     {
         if(isRunning())
         {
+            mLog.debug("readArray  was called when isRunning returned true");
             ByteBuffer buffer = ByteBuffer.allocateDirect(length);
 
             int transferred = LibUsb.controlTransfer(getDeviceHandle(), USB_REQUEST_IN, command.getValue(), (short) value,
@@ -670,6 +681,8 @@ public class AirspyTunerController extends USBTunerController
             byte[] results = new byte[transferred];
             buffer.get(results);
             return results;
+        } else {
+            mLog.debug("readArray  was called when isRunning returned false");
         }
 
         return new byte[0];

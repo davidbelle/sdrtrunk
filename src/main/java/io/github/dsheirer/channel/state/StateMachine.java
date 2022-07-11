@@ -25,6 +25,7 @@ import io.github.dsheirer.identifier.decoder.ChannelStateIdentifier;
 import io.github.dsheirer.sample.Listener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.github.dsheirer.source.tuner.TunerIdleEventFile;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -167,8 +168,11 @@ public class StateMachine
                     break;
                 case IDLE:
                     if (mState == State.CONTROL){
-                        // IDLE TO CONTROL detected
-                        mLog.debug("Idle to Control detected");
+                        // CONTROL TO IDLE detected
+                        mLog.debug("Control to idle detected");
+                        CreateTunerIdleEventFile();
+                    } else {
+                        mLog.debug(mState.name() + "  to  " + state.name() + " detected");
                     }
                     mState = state;
                     broadcast(ChannelStateIdentifier.IDLE);
@@ -275,5 +279,10 @@ public class StateMachine
     public long getEndTimeout()
     {
         return mEndTimeout;
+    }
+
+    private void CreateTunerIdleEventFile() {
+        mLog.debug("Channel changing from control to idle");
+        TunerIdleEventFile.create();
     }
 }

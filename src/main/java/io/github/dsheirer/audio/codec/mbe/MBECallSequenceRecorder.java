@@ -56,6 +56,8 @@ public abstract class MBECallSequenceRecorder extends Module implements IMessage
     private int mCallNumber = 1;
     protected String mTunerId = "";
 
+    protected String mLowSpeedData = "";
+
     /**
      * Constructs an instance
      * @param userPreferences to obtain recording directory
@@ -109,10 +111,9 @@ public abstract class MBECallSequenceRecorder extends Module implements IMessage
     {
         if(sequence != null && sequence.hasAudio())
         {
-
-
             sequence.setSystem(mSystem);
             sequence.setSite(mSite);
+            sequence.setHostname(System.getenv("COMPUTERNAME"));
 
             StringBuilder sb = new StringBuilder();
             sb.append(TimestampFormat.TIMESTAMP_COMPACT.getFormatter().format(new Date(System.currentTimeMillis())));

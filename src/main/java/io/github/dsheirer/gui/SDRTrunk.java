@@ -20,6 +20,7 @@ package io.github.dsheirer.gui;
 
 import com.jidesoft.plaf.LookAndFeelFactory;
 import com.jidesoft.swing.JideSplitPane;
+import io.github.dsheirer.HealthChecks;
 import io.github.dsheirer.alias.AliasModel;
 import io.github.dsheirer.audio.DuplicateCallDetector;
 import io.github.dsheirer.audio.broadcast.AudioStreamingManager;
@@ -97,9 +98,7 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
+import java.util.*;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -132,6 +131,11 @@ public class SDRTrunk implements Listener<TunerEvent>
     private UserPreferences mUserPreferences = new UserPreferences();
     private TunerManager mTunerManager;
     private ApplicationLog mApplicationLog;
+
+    // creating timer task, timer
+    private JMenuItem mScreenCaptureItem;
+    private HealthChecks mHealthChecks;
+    private Timer mHealthChecksTimer = new Timer();
 
     private String mTitle;
 
@@ -247,6 +251,7 @@ public class SDRTrunk implements Listener<TunerEvent>
             initGUI();
         }
 
+        mHealthChecks = new HealthChecks(mScreenCaptureItem, mMainGui, mPasswordGui);
         //Start the gui
         EventQueue.invokeLater(() -> {
             try
@@ -258,6 +263,10 @@ public class SDRTrunk implements Listener<TunerEvent>
                     } else {
                         mPasswordGui.setVisible(true);
                     }
+
+
+                    // scheduling the task
+                    mHealthChecksTimer.scheduleAtFixedRate(mHealthChecks, new Date(), 300000);
 
                     // mMainGui.setVisible(true);
                     Tuner tuner = tunerSpectralDisplayManager.showFirstTuner();
@@ -502,11 +511,11 @@ public class SDRTrunk implements Listener<TunerEvent>
 
         menuBar.add(viewMenu);
 
-        JMenuItem screenCaptureItem = new JMenuItem("Screen Capture");
-        screenCaptureItem.setMnemonic(KeyEvent.VK_C);
-        screenCaptureItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, ActionEvent.ALT_MASK));
-        screenCaptureItem.setMaximumSize(screenCaptureItem.getPreferredSize());
-        screenCaptureItem.addActionListener(arg0 -> {
+        mScreenCaptureItem = new JMenuItem("Screen Capture");
+        mScreenCaptureItem.setMnemonic(KeyEvent.VK_C);
+        mScreenCaptureItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, ActionEvent.ALT_MASK));
+        mScreenCaptureItem.setMaximumSize(mScreenCaptureItem.getPreferredSize());
+        mScreenCaptureItem.addActionListener(arg0 -> {
             try
             {
                 Robot robot = new Robot();
@@ -534,7 +543,7 @@ public class SDRTrunk implements Listener<TunerEvent>
             }
         });
 
-        menuBar.add(screenCaptureItem);
+        menuBar.add(mScreenCaptureItem);
     }
 
     /**
