@@ -420,6 +420,6 @@ public class ChannelMetadata implements Listener<IdentifierUpdateNotification>, 
     }
 
     private void CreateTunerIdleEventFile() {mLog.debug("Channel changing from control to idle");
-        TunerIdleEventFile.create();
+        // TunerIdleEventFile.create();
     }
 }

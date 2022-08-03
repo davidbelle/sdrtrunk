@@ -134,8 +134,7 @@ public class SDRTrunk implements Listener<TunerEvent>
 
     // creating timer task, timer
     private JMenuItem mScreenCaptureItem;
-    private HealthChecks mHealthChecks;
-    private Timer mHealthChecksTimer = new Timer();
+
 
     private String mTitle;
 
@@ -251,7 +250,6 @@ public class SDRTrunk implements Listener<TunerEvent>
             initGUI();
         }
 
-        mHealthChecks = new HealthChecks(mScreenCaptureItem, mMainGui, mPasswordGui);
         //Start the gui
         EventQueue.invokeLater(() -> {
             try
@@ -266,7 +264,7 @@ public class SDRTrunk implements Listener<TunerEvent>
 
 
                     // scheduling the task
-                    mHealthChecksTimer.scheduleAtFixedRate(mHealthChecks, new Date(), 300000);
+
 
                     // mMainGui.setVisible(true);
                     Tuner tuner = tunerSpectralDisplayManager.showFirstTuner();

@@ -466,4 +466,8 @@ public class ChannelMetadataPanel extends JPanel implements ListSelectionListene
             }
         }
     }
+
+    public JTable getTable(){
+        return mTable;
+    }
 }

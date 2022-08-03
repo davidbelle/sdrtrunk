@@ -5,6 +5,10 @@
  */
 package io.github.dsheirer.gui;
 
+import io.github.dsheirer.HealthChecks;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JLabel;
@@ -19,7 +23,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import javax.swing.JFrame;
 import java.util.Timer; 
-import java.util.TimerTask; 
+import java.util.TimerTask;
 
 /**
  *
@@ -34,7 +38,9 @@ public class PasswordPanel extends JPanel {
     private JLabel label;
     
     private JButton showPasswordButton;
-    
+    private boolean mAutolock = true;
+    private Timer activateTimer;
+    private final static Logger mLog = LoggerFactory.getLogger(PasswordPanel.class);
     
     
     
@@ -54,6 +60,11 @@ public class PasswordPanel extends JPanel {
         
 
     
+    }
+
+    public boolean autolock() {
+        mLog.debug("Auto lock is " + (mAutolock ? " true " : " false "));
+        return mAutolock;
     }
     
     public void init()
@@ -97,7 +108,7 @@ public class PasswordPanel extends JPanel {
      
     }
 
-    private Timer activateTimer;
+
 
     public void acivateTimer() {
         activateTimer = new Timer();
@@ -129,8 +140,8 @@ public class PasswordPanel extends JPanel {
 
             if (password3.equals(entered) && activateTimer != null) {
                 activateTimer.cancel();
+                mAutolock = false;
             }
-
             return true;
         }
         
