@@ -172,6 +172,7 @@ public class P25P1MessageFramer implements Listener<Dibit>, IP25P1DataUnitDetect
     @Override
     public void receive(Dibit dibit)
     {
+
         if(mAssemblingMessage)
         {
             //Strip out the status symbol dibit after every 70 bits or 35 dibits
@@ -345,7 +346,8 @@ public class P25P1MessageFramer implements Listener<Dibit>, IP25P1DataUnitDetect
                     }
                     break;
                 default:
-                    P25Message message = P25MessageFactory.create(mDataUnitID, mNAC, getTimestamp(), mBinaryMessage);
+                    // P25Message message = P25MessageFactory.create(mDataUnitID, mNAC, getTimestamp(), mBinaryMessage);
+                    P25Message message = P25MessageFactory.create(mDataUnitID, mNAC, mCurrentTime, mBinaryMessage);
                     mMessageListener.receive(message);
                     reset(mDataUnitID.getMessageLength());
                     break;
