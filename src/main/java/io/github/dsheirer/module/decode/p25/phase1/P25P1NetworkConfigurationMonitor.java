@@ -1,6 +1,12 @@
 /*
+<<<<<<< HEAD:src/main/java/io/github/dsheirer/module/decode/p25/phase1/P25P1NetworkConfigurationMonitor.java
  * *****************************************************************************
  * Copyright (C) 2014-2022 Dennis Sheirer
+=======
+ * ******************************************************************************
+ * sdrtrunk
+ * Copyright (C) 2014-2019 Dennis Sheirer
+>>>>>>> 4075d701 (Refactors P25 Phase 1 components into a phase 1 package.):src/main/java/io/github/dsheirer/module/decode/p25/network/P25NetworkConfigurationMonitor.java
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,6 +52,8 @@ import io.github.dsheirer.module.decode.p25.phase1.message.tsbk.standard.osp.Sec
 import io.github.dsheirer.module.decode.p25.phase1.message.tsbk.standard.osp.SecondaryControlChannelBroadcastExplicit;
 import io.github.dsheirer.module.decode.p25.phase1.message.tsbk.standard.osp.SystemServiceBroadcast;
 import org.apache.commons.lang3.StringUtils;
+
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

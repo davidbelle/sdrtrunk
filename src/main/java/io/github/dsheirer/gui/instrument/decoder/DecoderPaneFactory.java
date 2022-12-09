@@ -1,6 +1,12 @@
 /*
+<<<<<<< HEAD
  * *****************************************************************************
  * Copyright (C) 2014-2022 Dennis Sheirer
+=======
+ * ******************************************************************************
+ * sdrtrunk
+ * Copyright (C) 2014-2019 Dennis Sheirer
+>>>>>>> 4075d701 (Refactors P25 Phase 1 components into a phase 1 package.)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +20,11 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
+<<<<<<< HEAD
  * ****************************************************************************
+=======
+ * *****************************************************************************
+>>>>>>> 4075d701 (Refactors P25 Phase 1 components into a phase 1 package.)
  */
 package io.github.dsheirer.gui.instrument.decoder;
 

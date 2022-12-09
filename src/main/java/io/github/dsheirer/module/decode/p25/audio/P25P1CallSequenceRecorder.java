@@ -42,6 +42,9 @@ import io.github.dsheirer.module.decode.p25.phase1.message.ldu.LDUMessage;
 import io.github.dsheirer.module.decode.p25.phase1.message.tdu.TDULinkControlMessage;
 import io.github.dsheirer.module.decode.p25.phase1.message.tdu.TDUMessage;
 import io.github.dsheirer.preference.UserPreferences;
+import io.github.dsheirer.sample.Listener;
+import io.github.dsheirer.source.ISourceEventListener;
+import io.github.dsheirer.source.SourceEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +54,7 @@ import java.util.List;
  * P25 Phase 1 IMBE Frame recorder generates P25 call sequence recordings containing JSON representations of audio
  * frames, optional encryption and call identifiers.
  */
-public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder
+public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implements ISourceEventListener
 {
     private final static Logger mLog = LoggerFactory.getLogger(P25P1CallSequenceRecorder.class);
 
@@ -106,6 +109,9 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder
     {
         if(mCallSequence != null)
         {
+            if (mTunerId != "") {
+                mCallSequence.setTuner(mTunerId);
+            }
             writeCallSequence(mCallSequence);
             mCallSequence = null;
         }
@@ -116,8 +122,8 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder
      */
     public void process(P25Message message)
     {
-        if(message instanceof LDUMessage)
-        {
+
+        if(message instanceof LDUMessage) {
             process((LDUMessage)message);
         }
         else if(message instanceof TDULinkControlMessage)
@@ -126,7 +132,7 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder
         }
         else if(message instanceof TDUMessage)
         {
-            flush();
+            process((TDUMessage) message);
         }
     }
 
@@ -167,6 +173,14 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder
             baseTimestamp += 20;
         }
 
+    }
+
+    private void process(TDUMessage message){
+
+        if (mCallSequence != null){
+            mCallSequence.setTerminated(true);
+        }
+        flush();
     }
 
     private void process(LinkControlWord lcw)
@@ -210,6 +224,9 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder
                     break;
                 case CALL_TERMINATION_OR_CANCELLATION:
                 case MOTOROLA_TALK_COMPLETE:
+                    if (mTunerId != "") {
+                        mCallSequence.setTuner(mTunerId);
+                    }
                     writeCallSequence(mCallSequence);
                     mCallSequence = null;
                     break;
@@ -231,5 +248,20 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder
             mCallSequence.setEncrypted(true);
             mCallSequence.setEncryptionSyncParameters(parameters);
         }
+    }
+
+    @Override
+    public Listener<SourceEvent> getSourceEventListener() {
+
+        return new Listener<SourceEvent>()
+        {
+            @Override
+            public void receive(SourceEvent sourceEvent)
+            {
+                if (sourceEvent.getEvent() == SourceEvent.Event.NOTIFICATION_TUNER_ID) {
+                    mTunerId = sourceEvent.getEventDescription();
+                }
+            }
+        };
     }
 }

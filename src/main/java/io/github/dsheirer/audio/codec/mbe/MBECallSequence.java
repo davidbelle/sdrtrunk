@@ -27,6 +27,8 @@ import com.fasterxml.jackson.annotation.JsonRootName;
 import io.github.dsheirer.identifier.Identifier;
 import io.github.dsheirer.identifier.encryption.EncryptionKey;
 import io.github.dsheirer.module.decode.p25.audio.VoiceFrame;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,10 +38,12 @@ import java.util.List;
  * radio identifiers.
  */
 @JsonRootName("mbe_call")
-@JsonPropertyOrder({"protocol", "call_type", "from", "to", "encrypted", "frames"})
+@JsonPropertyOrder({"protocol", "call_type", "from", "to","encrypted", "terminated", "call_type","system","site","tuner_id","hostname","frames"})
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class MBECallSequence
 {
+    private final static Logger mLog = LoggerFactory.getLogger(MBECallSequence.class);
+
     private String mProtocol;
     private String mFromIdentifier;
     private String mToIdentifier;
@@ -49,6 +53,12 @@ public class MBECallSequence
     private boolean mEncrypted;
     private List<VoiceFrame> mVoiceFrames = new ArrayList<>();
     private IEncryptionSyncParameters mTemporaryEncryptionSyncParameters;
+
+    private String mTunerId = "";
+
+    private Boolean mTerminated = false;
+
+    private String mHostname = "";
 
     /**
      * Constructs a call sequence
@@ -62,6 +72,14 @@ public class MBECallSequence
     {
         //no-arg constructor for faster jackson deserialization
     }
+
+    @JsonProperty("terminated")
+    public Boolean getTerminated() { return mTerminated; }
+    public void setTerminated(Boolean terminated) {mTerminated = terminated; }
+
+    @JsonProperty("hostname")
+    public String getHostname() { return mHostname; }
+    public void setHostname(String value) {mHostname = value; }
 
     /**
      * Protocol/format for the voice frames
@@ -309,5 +327,26 @@ public class MBECallSequence
     public void addEncryptedVoiceFrame(long timestamp, String frame, int algorithm, int keyid, String messageIndicator)
     {
         mVoiceFrames.add(new VoiceFrame(timestamp, frame, algorithm, keyid, messageIndicator));
+    }
+
+
+
+    /**
+     * Site name defined by the tuner
+     * @return
+     */
+    @JsonProperty("tuner_id")
+    public String getTuner()
+    {
+        return mTunerId;
+    }
+
+    /**
+     * Sets the tuner name
+     * @param tunerId
+     */
+    public void setTuner(String tunerId)
+    {
+        mTunerId = tunerId;
     }
 }

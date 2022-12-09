@@ -44,6 +44,13 @@ import javax.swing.JPanel;
 import java.awt.Color;
 import java.awt.Dimension;
 
+import io.github.dsheirer.HealthChecks;
+import io.github.dsheirer.preference.UserPreferences;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.Date;
+
+
 public class ControllerPanel extends JPanel
 {
     private final static Logger mLog = LoggerFactory.getLogger(ControllerPanel.class);
@@ -56,6 +63,9 @@ public class ControllerPanel extends JPanel
     private TunerViewPanel mTunerManagerPanel;
 
     private JideTabbedPane mTabbedPane;
+
+    private HealthChecks mHealthChecks;
+    private Timer mHealthChecksTimer = new Timer();
 
     public ControllerPanel(PlaylistManager playlistManager, AudioPlaybackManager audioPlaybackManager,
                            IconModel iconModel, MapService mapService, SettingsManager settingsManager,
@@ -105,5 +115,12 @@ public class ControllerPanel extends JPanel
         mTabbedPane.setPreferredSize(new Dimension(880, 500));
 
         add(mTabbedPane, "wrap");
+
+        // activate health checks
+        mLog.debug("activating scheduled health checks");
+        UserPreferences mUserPreferences = new UserPreferences();
+        mHealthChecks = new HealthChecks(mNowPlayingPanel.getChannelDetailPanel().getTable(),
+                (JPanel) mTunerManagerPanel , mUserPreferences.getDirectoryPreference().getDirectoryScreenCapture());
+        mHealthChecksTimer.scheduleAtFixedRate(mHealthChecks, new Date(), 300000);
     }
 }

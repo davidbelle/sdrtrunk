@@ -412,22 +412,27 @@ public class TunerManager implements IDiscoveredTunerStatusListener
     public Source getSource(SourceConfiguration config, ChannelSpecification channelSpecification) throws SourceException
     {
         Source retVal = null;
+        String nullFrom = "";
 
         switch(config.getSourceType())
         {
             case MIXER:
                 retVal = MixerManager.getSource(config);
+                nullFrom = "mixer";
                 break;
             case TUNER:
+                nullFrom = "tuner";
                 if(config instanceof SourceConfigTuner)
                 {
                     SourceConfigTuner sourceConfigTuner = (SourceConfigTuner)config;
                     TunerChannel tunerChannel = sourceConfigTuner.getTunerChannel(channelSpecification.getBandwidth());
                     String preferredTuner = sourceConfigTuner.getPreferredTuner();
                     retVal = getSource(tunerChannel, channelSpecification, preferredTuner);
+                    nullFrom = "sourceconfigtuner";
                 }
                 break;
             case TUNER_MULTIPLE_FREQUENCIES:
+                nullFrom = "TUNER_MULTIPLE_FREQUENCIES";
                 if(config instanceof SourceConfigTunerMultipleFrequency)
                 {
                     SourceConfigTunerMultipleFrequency sourceConfigTuner = (SourceConfigTunerMultipleFrequency)config;
@@ -436,15 +441,24 @@ public class TunerManager implements IDiscoveredTunerStatusListener
 
                     Source source = getSource(tunerChannel, channelSpecification, preferredTuner);
 
+                    nullFrom = "SourceConfigTunerMultipleFrequency";
+
                     if(source instanceof TunerChannelSource)
                     {
                         retVal = new MultiFrequencyTunerChannelSource(this, (TunerChannelSource)source,
                                 sourceConfigTuner.getFrequencies(), channelSpecification, sourceConfigTuner.getPreferredTuner());
+
+                        nullFrom = "TunerChannelSource";
                     }
                 }
                 break;
             default:
+                nullFrom = "Unexpected getSourceType: " + config.getSourceType();
                 break;
+        }
+
+        if (retVal == null){
+            mLog.error("Tuner unavailable, null from " + nullFrom);
         }
 
         return retVal;
@@ -488,7 +502,11 @@ public class TunerManager implements IDiscoveredTunerStatusListener
                         preferredTuner + "] - searching for another tuner");
             }
 
+
+
             Iterator<DiscoveredTuner> it = mDiscoveredTunerModel.getAvailableTuners().iterator();
+
+
 
             while(it.hasNext() && source == null)
             {

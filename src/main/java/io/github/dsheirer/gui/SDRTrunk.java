@@ -20,6 +20,7 @@ package io.github.dsheirer.gui;
 
 import com.jidesoft.plaf.LookAndFeelFactory;
 import com.jidesoft.swing.JideSplitPane;
+import io.github.dsheirer.HealthChecks;
 import io.github.dsheirer.alias.AliasModel;
 import io.github.dsheirer.audio.DuplicateCallDetector;
 import io.github.dsheirer.audio.broadcast.AudioStreamingManager;
@@ -97,9 +98,10 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
+import java.util.*;
+
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 
 public class SDRTrunk implements Listener<TunerEvent>
 {
@@ -110,22 +112,28 @@ public class SDRTrunk implements Listener<TunerEvent>
     private static final String CONTROLLER_PANEL_IDENTIFIER = BASE_WINDOW_NAME + ".control.panel";
     private static final String SPECTRAL_PANEL_IDENTIFIER = BASE_WINDOW_NAME + ".spectral.panel";
     private static final String WINDOW_FRAME_IDENTIFIER = BASE_WINDOW_NAME + ".frame";
+    public static boolean lockable = true;
 
     private boolean mBroadcastStatusVisible;
     private AudioRecordingManager mAudioRecordingManager;
     private AudioStreamingManager mAudioStreamingManager;
     private BroadcastStatusPanel mBroadcastStatusPanel;
     private ControllerPanel mControllerPanel;
+    private PasswordPanel mPasswordPanel;
     private IconModel mIconModel = new IconModel();
     private PlaylistManager mPlaylistManager;
     private SettingsManager mSettingsManager;
     private SpectralDisplayPanel mSpectralPanel;
-    private JFrame mMainGui;
+    private JFrame mMainGui = new JFrame();
+    private JFrame mPasswordGui = new JFrame();
     private JideSplitPane mSplitPane;
     private JavaFxWindowManager mJavaFxWindowManager;
     private UserPreferences mUserPreferences = new UserPreferences();
     private TunerManager mTunerManager;
     private ApplicationLog mApplicationLog;
+
+    // creating timer task, timer
+    private JMenuItem mScreenCaptureItem;
 
     private String mTitle;
 
@@ -189,7 +197,7 @@ public class SDRTrunk implements Listener<TunerEvent>
 
         CalibrationManager calibrationManager = CalibrationManager.getInstance(mUserPreferences);
         final boolean calibrating = !calibrationManager.isCalibrated() &&
-            !mUserPreferences.getVectorCalibrationPreference().isHideCalibrationDialog();
+                !mUserPreferences.getVectorCalibrationPreference().isHideCalibrationDialog();
 
         new ChannelSelectionManager(mPlaylistManager.getChannelModel());
 
@@ -199,7 +207,7 @@ public class SDRTrunk implements Listener<TunerEvent>
         mAudioRecordingManager.start();
 
         mAudioStreamingManager = new AudioStreamingManager(mPlaylistManager.getBroadcastModel(), BroadcastFormat.MP3,
-            mUserPreferences);
+                mUserPreferences);
         mAudioStreamingManager.start();
 
         DuplicateCallDetector duplicateCallDetector = new DuplicateCallDetector(mUserPreferences);
@@ -216,12 +224,14 @@ public class SDRTrunk implements Listener<TunerEvent>
         {
             mControllerPanel = new ControllerPanel(mPlaylistManager, audioPlaybackManager, mIconModel, mapService,
                     mSettingsManager, mTunerManager, mUserPreferences);
+
+            mPasswordPanel = new PasswordPanel(mMainGui, mPasswordGui);
         }
 
         mSpectralPanel = new SpectralDisplayPanel(mPlaylistManager, mSettingsManager, mTunerManager.getDiscoveredTunerModel());
 
         TunerSpectralDisplayManager tunerSpectralDisplayManager = new TunerSpectralDisplayManager(mSpectralPanel,
-            mPlaylistManager, mSettingsManager, mTunerManager.getDiscoveredTunerModel());
+                mPlaylistManager, mSettingsManager, mTunerManager.getDiscoveredTunerModel());
         mTunerManager.getDiscoveredTunerModel().addListener(tunerSpectralDisplayManager);
         mTunerManager.getDiscoveredTunerModel().addListener(this);
 
@@ -245,7 +255,14 @@ public class SDRTrunk implements Listener<TunerEvent>
             {
                 if(!GraphicsEnvironment.isHeadless())
                 {
-                    mMainGui.setVisible(true);
+                    if (!lockable) {
+                        mMainGui.setVisible(true);
+                    } else {
+                        mPasswordGui.setVisible(true);
+                    }
+
+
+                    // mMainGui.setVisible(true);
                     Tuner tuner = tunerSpectralDisplayManager.showFirstTuner();
                     updateTitle(tuner);
                 }
@@ -319,29 +336,37 @@ public class SDRTrunk implements Listener<TunerEvent>
     private void initGUI()
     {
         mMainGui.setLayout(new MigLayout("insets 0 0 0 0 ", "[grow,fill]", "[grow,fill]"));
+        mPasswordGui.setLayout(new MigLayout("insets 0 0 0 0 ", "[grow,fill]", "[grow,fill]"));
 
         /**
          * Setup main JFrame window
          */
         mTitle = SystemProperties.getInstance().getApplicationName();
         mMainGui.setTitle(mTitle);
+        mPasswordGui.setTitle(" ");
 
         Point location = mUserPreferences.getSwingPreference().getLocation(WINDOW_FRAME_IDENTIFIER);
         if(location != null)
         {
             mMainGui.setLocation(location);
+            mPasswordGui.setLocation(location);
         }
         else
         {
             mMainGui.setLocationRelativeTo(null);
+            mPasswordGui.setLocationRelativeTo(null);
         }
         mMainGui.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         mMainGui.addWindowListener(new ShutdownMonitor());
+
+        mPasswordGui.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        mPasswordGui.addWindowListener(new ShutdownMonitor());
 
         Dimension dimension = mUserPreferences.getSwingPreference().getDimension(WINDOW_FRAME_IDENTIFIER);
 
         mSpectralPanel.setPreferredSize(new Dimension(1280, 300));
         mControllerPanel.setPreferredSize(new Dimension(1280, 500));
+        mPasswordPanel.setPreferredSize(new Dimension(1280,500));
 
         if(dimension != null)
         {
@@ -358,10 +383,12 @@ public class SDRTrunk implements Listener<TunerEvent>
             }
 
             mMainGui.setSize(dimension);
+            mPasswordGui.setSize(dimension);
 
             if(mUserPreferences.getSwingPreference().getMaximized(WINDOW_FRAME_IDENTIFIER, false))
             {
                 mMainGui.setExtendedState(JFrame.MAXIMIZED_BOTH);
+                mPasswordGui.setExtendedState(JFrame.MAXIMIZED_BOTH);
             }
         }
         else
@@ -384,6 +411,15 @@ public class SDRTrunk implements Listener<TunerEvent>
 
         mMainGui.add(mSplitPane, "cell 0 0,span,grow");
 
+        Box box = new Box(BoxLayout.Y_AXIS);
+        box.add(Box.createVerticalGlue());
+        box.add(mPasswordPanel);
+        box.add(Box.createVerticalGlue());
+
+        mPasswordGui.add(box);
+        mPasswordPanel.init();
+
+
         /**
          * Menu items
          */
@@ -393,16 +429,32 @@ public class SDRTrunk implements Listener<TunerEvent>
         JMenu fileMenu = new JMenu("File");
         menuBar.add(fileMenu);
 
+        JMenuItem lockMenu = new JMenuItem("Lock");
+        lockMenu.addActionListener(
+                new ActionListener()
+                {
+                    public void actionPerformed(ActionEvent event)
+                    {
+                        mPasswordGui.setVisible(true);
+                        mMainGui.setVisible(false);
+                        mPasswordPanel.toggleLoginFields(false);
+                        mPasswordPanel.acivateTimer();
+                    }
+                }
+        );
+
+        fileMenu.add(lockMenu);
+
         JMenuItem exitMenu = new JMenuItem("Exit");
         exitMenu.addActionListener(
-            new ActionListener()
-            {
-                public void actionPerformed(ActionEvent event)
+                new ActionListener()
                 {
-                    processShutdown();
-                    System.exit(0);
+                    public void actionPerformed(ActionEvent event)
+                    {
+                        processShutdown();
+                        System.exit(0);
+                    }
                 }
-            }
         );
 
         fileMenu.add(exitMenu);
@@ -436,10 +488,10 @@ public class SDRTrunk implements Listener<TunerEvent>
                     mLog.error("Couldn't open file explorer");
 
                     JOptionPane.showMessageDialog(mMainGui,
-                        "Can't launch file explorer - files are located at: " +
-                            getHomePath().toString(),
-                        "Can't launch file explorer",
-                        JOptionPane.ERROR_MESSAGE);
+                            "Can't launch file explorer - files are located at: " +
+                                    getHomePath().toString(),
+                            "Can't launch file explorer",
+                            JOptionPane.ERROR_MESSAGE);
                 }
             }
         });
@@ -453,11 +505,11 @@ public class SDRTrunk implements Listener<TunerEvent>
 
         menuBar.add(viewMenu);
 
-        JMenuItem screenCaptureItem = new JMenuItem("Screen Capture");
-        screenCaptureItem.setMnemonic(KeyEvent.VK_C);
-        screenCaptureItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, ActionEvent.ALT_MASK));
-        screenCaptureItem.setMaximumSize(screenCaptureItem.getPreferredSize());
-        screenCaptureItem.addActionListener(arg0 -> {
+        mScreenCaptureItem = new JMenuItem("Screen Capture");
+        mScreenCaptureItem.setMnemonic(KeyEvent.VK_C);
+        mScreenCaptureItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, ActionEvent.ALT_MASK));
+        mScreenCaptureItem.setMaximumSize(mScreenCaptureItem.getPreferredSize());
+        mScreenCaptureItem.addActionListener(arg0 -> {
             try
             {
                 Robot robot = new Robot();
@@ -485,7 +537,7 @@ public class SDRTrunk implements Listener<TunerEvent>
             }
         });
 
-        menuBar.add(screenCaptureItem);
+        menuBar.add(mScreenCaptureItem);
     }
 
     /**
@@ -497,7 +549,7 @@ public class SDRTrunk implements Listener<TunerEvent>
         mUserPreferences.getSwingPreference().setLocation(WINDOW_FRAME_IDENTIFIER, mMainGui.getLocation());
         mUserPreferences.getSwingPreference().setDimension(WINDOW_FRAME_IDENTIFIER, mMainGui.getSize());
         mUserPreferences.getSwingPreference().setMaximized(WINDOW_FRAME_IDENTIFIER,
-            (mMainGui.getExtendedState() & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH);
+                (mMainGui.getExtendedState() & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH);
         mUserPreferences.getSwingPreference().setDimension(SPECTRAL_PANEL_IDENTIFIER, mSpectralPanel.getSize());
         mUserPreferences.getSwingPreference().setDimension(CONTROLLER_PANEL_IDENTIFIER, mControllerPanel.getSize());
         mJavaFxWindowManager.shutdown();
@@ -521,7 +573,7 @@ public class SDRTrunk implements Listener<TunerEvent>
         if(mBroadcastStatusPanel == null)
         {
             mBroadcastStatusPanel = new BroadcastStatusPanel(mPlaylistManager.getBroadcastModel(), mUserPreferences,
-                "application.broadcast.status.panel");
+                    "application.broadcast.status.panel");
             mBroadcastStatusPanel.setPreferredSize(new Dimension(880, 70));
             mBroadcastStatusPanel.getTable().setEnabled(false);
         }
@@ -566,14 +618,14 @@ public class SDRTrunk implements Listener<TunerEvent>
             try
             {
                 mLog.info("SDRTrunk - creating application properties file [" +
-                    propsPath.toAbsolutePath() + "]");
+                        propsPath.toAbsolutePath() + "]");
 
                 Files.createFile(propsPath);
             }
             catch(IOException e)
             {
                 mLog.error("SDRTrunk - couldn't create application properties "
-                    + "file [" + propsPath.toAbsolutePath(), e);
+                        + "file [" + propsPath.toAbsolutePath(), e);
             }
         }
 
@@ -584,7 +636,7 @@ public class SDRTrunk implements Listener<TunerEvent>
         else
         {
             mLog.error("SDRTrunk - couldn't find or recreate the SDRTrunk " +
-                "application properties file");
+                    "application properties file");
         }
     }
 
@@ -597,7 +649,7 @@ public class SDRTrunk implements Listener<TunerEvent>
     private Path getHomePath()
     {
         Path homePath = FileSystems.getDefault()
-            .getPath(System.getProperty("user.home"), "SDRTrunk");
+                .getPath(System.getProperty("user.home"), "SDRTrunk");
 
         if(!Files.exists(homePath))
         {
@@ -606,14 +658,14 @@ public class SDRTrunk implements Listener<TunerEvent>
                 Files.createDirectory(homePath);
 
                 mLog.info("SDRTrunk - created application home directory [" +
-                    homePath.toString() + "]");
+                        homePath.toString() + "]");
             }
             catch(Exception e)
             {
                 homePath = null;
 
                 mLog.error("SDRTrunk: exception while creating SDRTrunk home " +
-                    "directory in the user's home directory", e);
+                        "directory in the user's home directory", e);
             }
         }
 

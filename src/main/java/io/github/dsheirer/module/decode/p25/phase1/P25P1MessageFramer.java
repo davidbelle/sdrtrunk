@@ -1,6 +1,12 @@
 /*
+<<<<<<< HEAD
  * *****************************************************************************
  * Copyright (C) 2014-2022 Dennis Sheirer
+=======
+ * ******************************************************************************
+ * sdrtrunk
+ * Copyright (C) 2014-2019 Dennis Sheirer
+>>>>>>> 4075d701 (Refactors P25 Phase 1 components into a phase 1 package.)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +54,7 @@ import io.github.dsheirer.module.decode.p25.phase1.message.pdu.packet.PacketMess
 import io.github.dsheirer.module.decode.p25.phase1.message.tsbk.TSBKMessage;
 import io.github.dsheirer.module.decode.p25.phase1.message.tsbk.TSBKMessageFactory;
 import io.github.dsheirer.preference.UserPreferences;
+
 import io.github.dsheirer.protocol.Protocol;
 import io.github.dsheirer.record.AudioRecordingManager;
 import io.github.dsheirer.record.binary.BinaryReader;
@@ -68,12 +75,15 @@ import java.util.function.Consumer;
  * P25 Sync Detector and Message Framer.  Includes capability to detect PLL out-of-phase lock errors
  * and issue phase corrections.
  */
+
 public class P25P1MessageFramer implements Listener<Dibit>, IP25P1DataUnitDetectListener
 {
     private final static Logger mLog = LoggerFactory.getLogger(P25P1MessageFramer.class);
 
     private P25P1DataUnitDetector mDataUnitDetector;
+
     private P25P1ChannelStatusProcessor mChannelStatusProcessor = new P25P1ChannelStatusProcessor();
+
     private Listener<Message> mMessageListener;
     private boolean mAssemblingMessage = false;
     private CorrectedBinaryMessage mBinaryMessage;
@@ -447,6 +457,7 @@ public class P25P1MessageFramer implements Listener<Dibit>, IP25P1DataUnitDetect
     {
         Path directory = Paths.get("/home/denny/Documents/TMR/APCO25/GPS/bkmzk007");
 //        Path directory = Paths.get("/media/denny/500G1EXT4/PBITRecordings");
+
 
         UserPreferences userPreferences = new UserPreferences();
         Channel channel = new Channel("Phase 1 Test");

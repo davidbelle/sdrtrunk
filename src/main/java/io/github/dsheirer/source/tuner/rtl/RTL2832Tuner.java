@@ -78,6 +78,13 @@ public class RTL2832Tuner extends Tuner
     }
 
     @Override
+    public void start() throws SourceException {
+        super.start();
+        mName = getController().getDescriptor().getSerial();
+        getChannelSourceManager().setTunerName(mName);
+    }
+
+    @Override
     public int getMaximumUSBBitsPerSecond()
     {
         //16 bits per sample * 2.4 MSPS

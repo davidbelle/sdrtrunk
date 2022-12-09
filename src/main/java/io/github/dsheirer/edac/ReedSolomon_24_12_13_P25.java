@@ -1,7 +1,7 @@
 /*
  * ******************************************************************************
  * sdrtrunk
- * Copyright (C) 2014-2018 Dennis Sheirer
+ * Copyright (C) 2014-2019 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,14 +24,14 @@ package io.github.dsheirer.edac;
  * Reed Solomon RS(24,12,13) decoder over GF(6)
  */
 public class ReedSolomon_24_12_13_P25 extends ReedSolomon_63_P25
-{
-    /**
-     * Constructs an instance.
-     *
-     * Note: this is a shortened form of RS(63,51,13)
-     */
-    public ReedSolomon_24_12_13_P25()
-    {
-        super(63,51);
-    }
+		{
+		/**
+		 * Constructs an instance.
+		 *
+		 * Note: this is a shortened form of RS(63,51,13)
+		 */
+		public ReedSolomon_24_12_13_P25()
+		{
+			super(63,51);
+		}
 }

@@ -49,6 +49,8 @@ public abstract class Tuner implements ISourceEventProcessor, ITunerErrorListene
 
     public Tuner(TunerController tunerController, ITunerErrorListener tunerErrorListener)
     {
+        mName = "";
+
         mTunerController = tunerController;
         mTunerErrorListener = tunerErrorListener;
         //Register to receive frequency and sample rate change notifications
@@ -69,11 +71,11 @@ public abstract class Tuner implements ISourceEventProcessor, ITunerErrorListene
 
         if(channelizerType == ChannelizerType.POLYPHASE)
         {
-            setChannelSourceManager(new PolyphaseChannelSourceManager(mTunerController));
+            setChannelSourceManager(new PolyphaseChannelSourceManager(mTunerController,mName));
         }
         else if(channelizerType == ChannelizerType.HETERODYNE)
         {
-            setChannelSourceManager(new HeterodyneChannelSourceManager(mTunerController));
+            setChannelSourceManager(new HeterodyneChannelSourceManager(mTunerController, mName));
         }
         else
         {
@@ -280,4 +282,6 @@ public abstract class Tuner implements ISourceEventProcessor, ITunerErrorListene
     {
         mTunerEventBroadcaster.broadcast(tunerEvent);
     }
+
+    protected String mName;
 }

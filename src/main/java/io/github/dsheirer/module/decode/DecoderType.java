@@ -1,6 +1,12 @@
 /*
+<<<<<<< HEAD
  * *****************************************************************************
  * Copyright (C) 2014-2022 Dennis Sheirer
+=======
+ * ******************************************************************************
+ * sdrtrunk
+ * Copyright (C) 2014-2019 Dennis Sheirer
+>>>>>>> 4075d701 (Refactors P25 Phase 1 components into a phase 1 package.)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +41,7 @@ public enum DecoderType
     MPT1327("MPT1327", "MPT1327", Protocol.MPT1327),
     NBFM("NBFM", "NBFM", Protocol.NBFM),
     PASSPORT("Passport", "Passport", Protocol.PASSPORT),
+
     P25_PHASE1("P25 Phase 1", "P25-1", Protocol.APCO25),
     P25_PHASE2("P25 Phase 2", "P25-2", Protocol.APCO25_PHASE2),
 

@@ -52,6 +52,7 @@ public abstract class MBECallSequenceRecorder extends Module implements IMessage
     protected long mChannelFrequency;
     protected String mSystem;
     protected String mSite;
+    protected String mTunerId = "";
     private int mCallNumber = 1;
 
     /**

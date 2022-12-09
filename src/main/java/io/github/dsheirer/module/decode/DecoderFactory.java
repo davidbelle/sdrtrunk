@@ -69,6 +69,7 @@ import io.github.dsheirer.module.decode.mpt1327.MPT1327TrafficChannelManager;
 import io.github.dsheirer.module.decode.mpt1327.Sync;
 import io.github.dsheirer.module.decode.nbfm.DecodeConfigNBFM;
 import io.github.dsheirer.module.decode.nbfm.NBFMDecoder;
+
 import io.github.dsheirer.module.decode.nbfm.NBFMDecoderState;
 import io.github.dsheirer.module.decode.p25.P25TrafficChannelManager;
 import io.github.dsheirer.module.decode.p25.audio.P25P1AudioModule;
@@ -81,6 +82,7 @@ import io.github.dsheirer.module.decode.p25.phase1.message.filter.P25MessageFilt
 import io.github.dsheirer.module.decode.p25.phase2.DecodeConfigP25Phase2;
 import io.github.dsheirer.module.decode.p25.phase2.P25P2DecoderHDQPSK;
 import io.github.dsheirer.module.decode.p25.phase2.P25P2DecoderState;
+
 import io.github.dsheirer.module.decode.passport.DecodeConfigPassport;
 import io.github.dsheirer.module.decode.passport.PassportDecoder;
 import io.github.dsheirer.module.decode.passport.PassportDecoderState;
@@ -170,6 +172,7 @@ public class DecoderFactory
                 processPassport(channel, modules, aliasList, decodeConfig);
                 break;
             case P25_PHASE1:
+
                 processP25Phase1(channel, userPreferences, modules, aliasList, channelType, (DecodeConfigP25Phase1) decodeConfig);
                 break;
             case P25_PHASE2:
@@ -533,6 +536,33 @@ public class DecoderFactory
         }
     }
 
+
+    /*
+    public static ValidatingEditor<Channel> getEditor(DecoderType type, ChannelMapModel model)
+    {
+        switch(type)
+        {
+            case AM:
+                return new AMDecoderEditor();
+            case LTR_NET:
+                return new LTRNetDecoderEditor();
+            case LTR_STANDARD:
+                return new LTRStandardDecoderEditor();
+            case MPT1327:
+                return new MPT1327DecoderEditor(model);
+            case NBFM:
+                return new NBFMDecoderEditor();
+            case P25_PHASE1:
+                return new P25P1DecoderEditor();
+            case PASSPORT:
+                return new PassportDecoderEditor();
+            default:
+                break;
+        }
+
+        return new EmptyValidatingEditor<Channel>("a decoder");
+    }
+*/
     /**
      * Creates a copy of the configuration
      */

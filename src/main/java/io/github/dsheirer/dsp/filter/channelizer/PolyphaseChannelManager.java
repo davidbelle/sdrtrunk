@@ -175,7 +175,7 @@ public class PolyphaseChannelManager implements ISourceEventProcessor
      * @param tunerChannel specifying center frequency and bandwidth.
      * @return source or null.
      */
-    public TunerChannelSource getChannel(TunerChannel tunerChannel)
+    public TunerChannelSource getChannel(TunerChannel tunerChannel,  String tunerId)
     {
         PolyphaseChannelSource channelSource = null;
 
@@ -202,6 +202,8 @@ public class PolyphaseChannelManager implements ISourceEventProcessor
                 }
             }
         }
+
+        channelSource.setTunerId(tunerId);
 
         return channelSource;
     }

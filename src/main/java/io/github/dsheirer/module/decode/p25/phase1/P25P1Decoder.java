@@ -1,6 +1,12 @@
 /*
+<<<<<<< HEAD
  * *****************************************************************************
  * Copyright (C) 2014-2022 Dennis Sheirer
+=======
+ * ******************************************************************************
+ * sdrtrunk
+ * Copyright (C) 2014-2019 Dennis Sheirer
+>>>>>>> 4075d701 (Refactors P25 Phase 1 components into a phase 1 package.)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,9 +20,14 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
+<<<<<<< HEAD
  * ****************************************************************************
+=======
+ * *****************************************************************************
+>>>>>>> 4075d701 (Refactors P25 Phase 1 components into a phase 1 package.)
  */
 package io.github.dsheirer.module.decode.p25.phase1;
+
 
 import io.github.dsheirer.dsp.squelch.PowerMonitor;
 import io.github.dsheirer.dsp.symbol.Dibit;
@@ -33,6 +44,7 @@ import io.github.dsheirer.source.ISourceEventProvider;
 import io.github.dsheirer.source.SourceEvent;
 
 import java.nio.ByteBuffer;
+
 
 public abstract class P25P1Decoder extends FeedbackDecoder implements ISourceEventListener, ISourceEventProvider,
         IComplexSamplesListener, Listener<ComplexSamples>, IByteBufferProvider

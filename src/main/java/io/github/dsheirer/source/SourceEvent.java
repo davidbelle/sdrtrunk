@@ -46,6 +46,7 @@ public class SourceEvent
         NOTIFICATION_STOP_SAMPLE_STREAM,
         NOTIFICATION_TUNER_SHUTDOWN,
         NOTIFICATION_ERROR_STATE,
+        NOTIFICATION_TUNER_ID,
 
         REQUEST_CHANNEL_FREQUENCY_CORRECTION_CHANGE,
         REQUEST_FREQUENCY_CHANGE,
@@ -473,5 +474,13 @@ public class SourceEvent
                " VALUE:" + (mValue != null ? mValue : "(empty)") +
                " SOURCE:" + (mSource != null ? mSource.toString() : "(null)") +
                " DESCRIPTION:" + (mEventDescription != null ? mEventDescription : "");
+    }
+
+    public static SourceEvent createTunerId(Source source, String tunerID) {
+        return new SourceEvent(Event.NOTIFICATION_TUNER_ID, source, 0, tunerID);
+    }
+
+    public String getEventDescription() {
+        return (mEventDescription == null ? "" : mEventDescription);
     }
 }

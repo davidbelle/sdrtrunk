@@ -54,8 +54,9 @@ public class HeterodyneChannelSourceManager extends ChannelSourceManager
     private NativeSampleDelayBuffer mSampleDelayBuffer;
     private boolean mRunning = true;
 
-    public HeterodyneChannelSourceManager(TunerController tunerController)
+    public HeterodyneChannelSourceManager(TunerController tunerController,  String tunerId)
     {
+        mTunerId = tunerId;
         mTunerController = tunerController;
         mTunerController.addListener(this);
     }
@@ -120,6 +121,8 @@ public class HeterodyneChannelSourceManager extends ChannelSourceManager
                     mTunerController.setLockedSampleRate(true);
 
                     broadcast(SourceEvent.channelCountChange(getTunerChannelCount()));
+
+                    tunerChannelSource.setTunerId(mTunerId);
 
                     source = tunerChannelSource;
                 }
@@ -321,5 +324,9 @@ public class HeterodyneChannelSourceManager extends ChannelSourceManager
                     break;
             }
         }
+    }
+
+    public void setTunerName(String name){
+        mTunerId = name;
     }
 }

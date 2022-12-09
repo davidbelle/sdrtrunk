@@ -39,6 +39,8 @@ public abstract class ChannelSourceManager implements ISourceEventProcessor
 
     private Broadcaster<SourceEvent> mSourceEventBroadcaster = new Broadcaster<>();
 
+    protected String mTunerId;
+
     /**
      * Prepare for disposal
      */
@@ -104,5 +106,9 @@ public abstract class ChannelSourceManager implements ISourceEventProcessor
     protected void broadcast(SourceEvent sourceEvent)
     {
         mSourceEventBroadcaster.broadcast(sourceEvent);
+    }
+
+    public void setTunerName(String name){
+        mTunerId = name;
     }
 }

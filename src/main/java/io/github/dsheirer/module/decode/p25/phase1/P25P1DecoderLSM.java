@@ -1,4 +1,10 @@
 /*
+<<<<<<< HEAD
+=======
+ * ******************************************************************************
+ * sdrtrunk
+ * Copyright (C) 2014-2019 Dennis Sheirer
+>>>>>>> 4075d701 (Refactors P25 Phase 1 components into a phase 1 package.)
  *
  *  * ******************************************************************************
  *  * Copyright (C) 2014-2020 Dennis Sheirer
@@ -94,7 +100,10 @@ public class P25P1DecoderLSM extends P25P1Decoder
         }
 
         mMessageFramer = new P25P1MessageFramer(mCostasLoop, DecoderType.P25_PHASE1.getProtocol().getBitRate());
+
         mMessageFramer.setSyncDetectListener(mFrequencyCorrectionSyncMonitor);
+
+        // 4075d701 mMessageFramer.setSyncDetectListener(mPLLGainMonitor);
         mMessageFramer.setListener(getMessageProcessor());
         mMessageFramer.setSampleRate(sampleRate);
         mQPSKDemodulator.setSymbolListener(getDibitBroadcaster());

@@ -79,4 +79,8 @@ public class NowPlayingPanel extends JPanel
         mChannelMetadataPanel.addProcessingChainSelectionListener(mMessageActivityPanel);
         mChannelMetadataPanel.addProcessingChainSelectionListener(mChannelPowerPanel);
     }
+
+    public ChannelMetadataPanel getChannelDetailPanel() {
+        return mChannelMetadataPanel;
+    }
 }

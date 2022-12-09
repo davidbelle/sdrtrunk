@@ -1,4 +1,10 @@
 /*
+<<<<<<< HEAD
+=======
+ * ******************************************************************************
+ * sdrtrunk
+ * Copyright (C) 2014-2019 Dennis Sheirer
+>>>>>>> 4075d701 (Refactors P25 Phase 1 components into a phase 1 package.)
  *
  *  * ******************************************************************************
  *  * Copyright (C) 2014-2020 Dennis Sheirer
@@ -49,6 +55,7 @@ public class P25P1DecoderC4FM extends P25P1Decoder
     protected InterpolatingSampleBuffer mInterpolatingSampleBuffer;
     protected DQPSKDecisionDirectedDemodulator mQPSKDemodulator;
     protected CostasLoop mCostasLoop;
+
     protected FrequencyCorrectionSyncMonitor mFrequencyCorrectionSyncMonitor;
     protected P25P1MessageFramer mMessageFramer;
     protected IComplexGainControl mAGC = ComplexGainFactory.getComplexGainControl();

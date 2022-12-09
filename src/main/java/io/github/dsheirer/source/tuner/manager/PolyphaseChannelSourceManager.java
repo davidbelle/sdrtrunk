@@ -45,8 +45,9 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
      * Constructs an instance
      * @param tunerController with a center tuned frequency that will be managed by this instance
      */
-    public PolyphaseChannelSourceManager(TunerController tunerController)
+    public PolyphaseChannelSourceManager(TunerController tunerController, String tunerId)
     {
+        mTunerId = tunerId;
         mTunerController = tunerController;
 
         mPolyphaseChannelManager = new PolyphaseChannelManager(tunerController);
@@ -444,7 +445,7 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
                         }
 
                         //If we're successful to here, allocate the channel
-                        tunerChannelSource = mPolyphaseChannelManager.getChannel(tunerChannel);
+                        tunerChannelSource = mPolyphaseChannelManager.getChannel(tunerChannel, mTunerId);
                     }
                     catch(SourceException se)
                     {

@@ -111,6 +111,7 @@ public abstract class TunerChannelSource extends ComplexSource implements ISourc
         //Broadcast current frequency and sample rate so consumer can configure correctly
         broadcastConsumerSourceEvent(SourceEvent.frequencyChange(this, getFrequency(), "Startup"));
         broadcastProducerSourceEvent(SourceEvent.startSampleStreamRequest(this));
+        broadcastConsumerSourceEvent(SourceEvent.createTunerId(this, mTunerID));
     }
 
     /**
@@ -182,6 +183,7 @@ public abstract class TunerChannelSource extends ComplexSource implements ISourc
             case NOTIFICATION_SQUELCH_THRESHOLD:
             case REQUEST_CHANGE_SQUELCH_THRESHOLD:
             case REQUEST_CURRENT_SQUELCH_THRESHOLD:
+            case NOTIFICATION_TUNER_ID:
                 //Ignore
                 break;
             default:
@@ -243,5 +245,13 @@ public abstract class TunerChannelSource extends ComplexSource implements ISourc
     public void removeSourceEventListener()
     {
         mConsumerSourceEventListener = null;
+    }
+
+    private String mTunerID = "";
+    public void setTunerId(String tunerID) {
+        mTunerID = tunerID;
+    }
+    public String getTunerId() {
+        return mTunerID;
     }
 }

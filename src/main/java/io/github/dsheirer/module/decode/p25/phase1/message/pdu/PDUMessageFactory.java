@@ -193,14 +193,14 @@ public class PDUMessageFactory
     }
 
 
-        /**
-         * Creates an alternate multi-block trunking control message
-         *
-         * @param pduSequence containing an AMBTC (PDU) header
-         * @param nac network access code
-         * @param timestamp of the packet sequence
-         * @return AMBTC message parser for the specific opcode
-         */
+    /**
+     * Creates an alternate multi-block trunking control message
+     *
+     * @param pduSequence containing an AMBTC (PDU) header
+     * @param nac network access code
+     * @param timestamp of the packet sequence
+     * @return AMBTC message parser for the specific opcode
+     */
     public static P25Message createAMBTC(PDUSequence pduSequence, int nac, long timestamp)
     {
         AMBTCHeader ambtcHeader = (AMBTCHeader)pduSequence.getHeader();
@@ -298,7 +298,7 @@ public class PDUMessageFactory
         if(pduSequence.hasDataBlock(0))
         {
             opcode = Opcode.fromValue(pduSequence.getDataBlock(0).getMessage().getInt(BLOCK_0_UMBTC_OPCODE),
-                pduSequence.getHeader().getDirection(), pduSequence.getHeader().getVendor());
+                    pduSequence.getHeader().getDirection(), pduSequence.getHeader().getVendor());
         }
 
         switch(opcode)

@@ -37,7 +37,7 @@ public class TestTuner extends Tuner
 
     public TestTuner(ITunerErrorListener tunerErrorListener)
     {
-        super(new TestTunerController(), tunerErrorListener);
+        super( new TestTunerController(), tunerErrorListener);
     }
 
     /**
