@@ -441,21 +441,27 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
                     {
                         updatedCenterFrequency = getCenterFrequency(tunerChannels, currentCenterFrequency);
 
-                    //If we're successful to here, allocate the channel
+                        if(updatedCenterFrequency != currentCenterFrequency && updatedCenterFrequency != 0)
+                        {
+                            mTunerController.setFrequency(updatedCenterFrequency);
+                        }
 
-                    return mPolyphaseChannelManager.getChannel(tunerChannel, mTunerId);
+                        //If we're successful to here, allocate the channel
 
-                }
-                catch(SourceException se)
-                {
-                    //Tuner controller threw an error trying to tune to the updated frequency
-                    mLog.error("Error while updating tuner controller with new center frequency [" +
-                        updatedCenterFrequency + "] - unable to allocate new tuner channel", se);
-                }
-                catch(IllegalArgumentException iae)
-                {
-                    //Center frequency calculation failed
-                }
+                        mPolyphaseChannelManager.getChannel(tunerChannel, mTunerId);
+
+                    }
+                    catch(SourceException se)
+                    {
+                        //Tuner controller threw an error trying to tune to the updated frequency
+                        mLog.error("Error while updating tuner controller with new center frequency [" +
+                            updatedCenterFrequency + "] - unable to allocate new tuner channel", se);
+                    }
+                    catch(IllegalArgumentException iae)
+                    {
+                        //Center frequency calculation failed
+                    }
+		        }
             }
         }
         finally
