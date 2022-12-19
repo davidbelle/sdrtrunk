@@ -22,5 +22,5 @@ import java.util.List;
 
 public interface ISilenceGenerator
 {
-    List<byte[]> generate(long duration);
+    AudioFrames generate(long duration);
 }
