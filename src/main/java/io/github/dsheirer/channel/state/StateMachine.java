@@ -171,9 +171,7 @@ public class StateMachine
                         // CONTROL TO IDLE detected
                         mLog.debug("Control to idle detected");
                         CreateTunerIdleEventFile();
-                    } else {
-                        mLog.debug(mState.name() + "  to  " + state.name() + " detected");
-                    }
+                    } 
                     mState = state;
                     broadcast(ChannelStateIdentifier.IDLE);
                     break;
