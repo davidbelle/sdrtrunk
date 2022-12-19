@@ -368,7 +368,7 @@ public class ChannelMetadata implements Listener<IdentifierUpdateNotification>, 
                             CreateTunerIdleEventFile();
                         } else {
                             if (mChannelStateIdentifier != null && mChannelStateIdentifier instanceof ChannelStateIdentifier && identifier instanceof ChannelStateIdentifier){
-                                mLog.debug((mChannelNameConfigurationIdentifier != null ? mChannelNameConfigurationIdentifier.toString() : "") + " from " + mChannelStateIdentifier.getValue().name() + " to " + ((ChannelStateIdentifier)identifier).getValue().name());
+                                // mLog.debug((mChannelNameConfigurationIdentifier != null ? mChannelNameConfigurationIdentifier.toString() : "") + " from " + mChannelStateIdentifier.getValue().name() + " to " + ((ChannelStateIdentifier)identifier).getValue().name());
                             }
                         }
 

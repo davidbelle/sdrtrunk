@@ -448,7 +448,7 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
 
                         //If we're successful to here, allocate the channel
 
-                        mPolyphaseChannelManager.getChannel(tunerChannel, mTunerId);
+                        tunerChannelSource = mPolyphaseChannelManager.getChannel(tunerChannel, mTunerId);
 
                     }
                     catch(SourceException se)
