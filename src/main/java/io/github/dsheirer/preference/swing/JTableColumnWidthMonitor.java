@@ -24,12 +24,16 @@ import io.github.dsheirer.preference.UserPreferences;
 import io.github.dsheirer.util.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.lang.Integer;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.swing.JTable;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.TableColumnModelEvent;
 import javax.swing.event.TableColumnModelListener;
+import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -95,6 +99,7 @@ public class JTableColumnWidthMonitor
             }
         }
 
+
         restoreColumnPositions();
     }
 
@@ -129,13 +134,23 @@ public class JTableColumnWidthMonitor
     private void restoreColumnPositions()
     {
         TableColumnModel model = mTable.getColumnModel();
-        for(int x = 0; x < model.getColumnCount(); x++)
+        HashMap<Integer,TableColumn> newOrder = new HashMap<Integer,TableColumn>(model.getColumnCount());
+
+        for(int x =  model.getColumnCount()-1; x >= 0; x--)
         {
             int position = mUserPreferences.getSwingPreference().getInt(getColumnKeyPosition(model.getColumn(x).getModelIndex()), Integer.MAX_VALUE);
             if(position != Integer.MAX_VALUE)
             {
-                mTable.moveColumn(x,position);
+                TableColumn col = model.getColumn(x);
+                newOrder.put(position,col);
+                model.removeColumn(col);
             }
+        }
+
+        for ( Map.Entry<Integer, TableColumn> entry : newOrder.entrySet() ) {
+            Integer key = entry.getKey();
+            TableColumn value = entry.getValue();
+            mTable.addColumn(value);
         }
     }
 
@@ -200,6 +215,7 @@ public class JTableColumnWidthMonitor
         @Override
         public void run()
         {
+            mLog.debug("saving positions and widths");
             storeColumnPositions();
             mSaveInProgress.set(false);
         }
