@@ -36,7 +36,7 @@ import java.util.List;
  * radio identifiers.
  */
 @JsonRootName("mbe_call")
-@JsonPropertyOrder({"protocol", "call_type", "from", "to","encrypted", "terminated", "call_type","system","site","tuner_id","lowspeeddata","hostname","frames"})
+@JsonPropertyOrder({"protocol", "call_type", "from", "to","encrypted", "terminated", "call_type","system","site","tuner_id","lowspeeddata","hostname","patchgroup","frames"})
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class MBECallSequence
 {
@@ -232,7 +232,7 @@ public class MBECallSequence
      *
      * @return to id
      */
-    // @JsonProperty("patchgroup")
+    @JsonProperty("patchgroup")
     public String getToIdentifierPatch()
     {
         return mToIdentifierPatch;
