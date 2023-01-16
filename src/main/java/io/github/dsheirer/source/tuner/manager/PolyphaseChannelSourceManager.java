@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2022 Dennis Sheirer
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,6 +56,17 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
         mPolyphaseChannelManager.addSourceEventListener(this::process);
         mTunerController.addListener(mPolyphaseChannelManager);
 
+    }
+
+    @Override
+    public String getStateDescription()
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Polyphase Channel Source Manager");
+        sb.append("\n\tTuner Controller Frequency: ").append(mTunerController.getFrequency());
+        sb.append("\n\t").append(mPolyphaseChannelManager.getStateDescription());
+
+        return sb.toString();
     }
 
     @Override
@@ -172,7 +183,7 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
      * @return optimal center tuned frequency for the set of currently sourced tuner channels.
      * @throws IllegalArgumentException if a center frequency cannot be determined for the set of tuner channels
      */
-    private long getCenterFrequency(SortedSet<TunerChannel> channels, long currentCenterFrequency)
+    protected long getCenterFrequency(SortedSet<TunerChannel> channels, long currentCenterFrequency)
         throws IllegalArgumentException
     {
         if(channels.isEmpty())
@@ -459,9 +470,14 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
                     }
                     catch(IllegalArgumentException iae)
                     {
+                        mLog.error("Center frequency calculation failed", iae);
                         //Center frequency calculation failed
                     }
-		        }
+                    catch(Exception e)
+                    {
+                        mLog.error("Error getting source", e);
+                    }
+                }
             }
         }
         finally
