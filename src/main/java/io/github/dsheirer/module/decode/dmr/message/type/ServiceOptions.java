@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- *  Copyright (C) 2014-2020 Dennis Sheirer
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 package io.github.dsheirer.module.decode.dmr.message.type;
 
 import com.google.common.base.Joiner;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,6 +30,8 @@ public class ServiceOptions
 {
     private static final int EMERGENCY_MASK = 0x80;
     private static final int ENCRYPTION_MASK = 0x40;
+    private static final int RESERVED_1 = 0x20;
+    private static final int RESERVED_2 = 0x10;
     private static final int BROADCAST_SERVICE_MASK = 0x8;
     private static final int OPEN_VOICE_CALL_MODE_MASK = 0x4;
     private static final int PRIORITY_MASK = 0x3;
@@ -78,6 +79,24 @@ public class ServiceOptions
     }
 
     /**
+     * Indicates if Reserved 1 bit is set
+     * @return true if set
+     */
+    public boolean isReserved1()
+    {
+        return isSet(RESERVED_1);
+    }
+
+    /**
+     * Indicates if Reserved 2 bit is set
+     * @return true if set
+     */
+    public boolean isReserved2()
+    {
+        return isSet(RESERVED_2);
+    }
+
+    /**
      * Priority of the communication
      * @return priority 0-3, 0 = lowest/routine, 3 = highest
      */
@@ -117,6 +136,16 @@ public class ServiceOptions
         if(isOpenVoiceCallMode())
         {
             flags.add("OVCM");
+        }
+
+        if(isReserved1())
+        {
+            flags.add("RSVD1");
+        }
+
+        if(isReserved2())
+        {
+            flags.add("RSVD2");
         }
 
         if(getPriority() > 0)

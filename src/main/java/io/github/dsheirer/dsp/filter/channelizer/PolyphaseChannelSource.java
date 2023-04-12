@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2022 Dennis Sheirer
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,10 +28,12 @@ import io.github.dsheirer.source.SourceEvent;
 import io.github.dsheirer.source.tuner.channel.StreamProcessorWithHeartbeat;
 import io.github.dsheirer.source.tuner.channel.TunerChannel;
 import io.github.dsheirer.source.tuner.channel.TunerChannelSource;
-import java.util.List;
-import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Polyphase Channelizer's Tuner Channel Source implementation.  Wraps a ChannelOutputProcessor instance and
@@ -45,8 +47,12 @@ public class PolyphaseChannelSource extends TunerChannelSource implements Listen
     private StreamProcessorWithHeartbeat<ComplexSamples> mStreamHeartbeatProcessor;
     private double mChannelSampleRate;
     private long mIndexCenterFrequency;
-    private long mChannelFrequencyCorrection;
     private ReentrantLock mOutputProcessorLock = new ReentrantLock();
+
+    private List<Integer> mOutputProcessorIndexes = new ArrayList<>();
+    private double mTunerSampleRate;
+    private double mTunerCenterFrequency;
+
 
     /**
      * Constructs an instance
@@ -64,6 +70,41 @@ public class PolyphaseChannelSource extends TunerChannelSource implements Listen
         mChannelSampleRate = channelCalculator.getChannelSampleRate();
         mStreamHeartbeatProcessor = new StreamProcessorWithHeartbeat<>(getHeartbeatManager(), HEARTBEAT_INTERVAL_MS);
         updateOutputProcessor(channelCalculator, filterManager);
+    }
+
+    /**
+     * Description of the state or configuration of the output processor.
+     */
+    public String getStateDescription()
+    {
+        return mPolyphaseChannelOutputProcessor.getStateDescription();
+    }
+
+    /**
+     * Current output processor indexes.
+     * @return indexes
+     */
+    public List<Integer> getOutputProcessorIndexes()
+    {
+        return mOutputProcessorIndexes;
+    }
+
+    /**
+     * Sample rate or bandwidth of the tuner providing input to the channelizer.
+     * @return sample rate
+     */
+    public double getTunerSampleRate()
+    {
+        return mTunerSampleRate;
+    }
+
+    /**
+     * Center tuned frequency of the tuner providing input to the channelizer.
+     * @return center frequency
+     */
+    public double getTunerCenterFrequency()
+    {
+        return mTunerCenterFrequency;
     }
 
     @Override
@@ -125,6 +166,11 @@ public class PolyphaseChannelSource extends TunerChannelSource implements Listen
             //calculator will throw an IllegalArgException ... handled below
             List<Integer> indexes = channelCalculator.getChannelIndexes(getTunerChannel());
 
+            mOutputProcessorIndexes.clear();
+            mOutputProcessorIndexes.addAll(indexes);
+            mTunerCenterFrequency = channelCalculator.getCenterFrequency();
+            mTunerSampleRate = channelCalculator.getSampleRate();
+
             //The provided channels are necessarily aligned to the center frequency that this source is providing and an
             //oscillator will mix the provided channels to bring the desired center frequency to baseband.
             setFrequency(channelCalculator.getCenterFrequencyForIndexes(indexes));
@@ -137,7 +183,7 @@ public class PolyphaseChannelSource extends TunerChannelSource implements Listen
                 {
                     try
                     {
-                        float[] filter = filterManager.getFilter(channelCalculator.getSampleRate(),
+                        float[] filter = filterManager.getFilter(channelCalculator.getChannelSampleRate(),
                                 channelCalculator.getChannelBandwidth(), indexes.size());
                         mPolyphaseChannelOutputProcessor.setSynthesisFilter(filter);
                     }
@@ -156,6 +202,7 @@ public class PolyphaseChannelSource extends TunerChannelSource implements Listen
                 if(mPolyphaseChannelOutputProcessor != null)
                 {
                     mPolyphaseChannelOutputProcessor.setListener(null);
+                    mPolyphaseChannelOutputProcessor.stop();
                 }
 
                 mPolyphaseChannelOutputProcessor = null;
@@ -263,59 +310,32 @@ public class PolyphaseChannelSource extends TunerChannelSource implements Listen
         }
     }
 
-    @Override
-    public long getChannelFrequencyCorrection()
-    {
-        return mChannelFrequencyCorrection;
-    }
-
     /**
-     * Adjusts the frequency correction value that is being applied to the channelized output stream by the
-     * polyphase channel output processor.
-     *
-     * @param value to apply for frequency correction in hertz
-     */
-    protected void setChannelFrequencyCorrection(long value)
-    {
-        mChannelFrequencyCorrection = value;
-        updateFrequencyOffset();
-        broadcastConsumerSourceEvent(SourceEvent.frequencyCorrectionChange(mChannelFrequencyCorrection));
-    }
-
-    /**
-     * Sets the center frequency for this channel.frequency for the incoming sample stream channel results and resets frequency correction to zero.
+     * Sets the center frequency for this channel.
      * @param frequency in hertz
      */
     @Override
     public void setFrequency(long frequency)
     {
         mIndexCenterFrequency = frequency;
+    }
 
-        //Set frequency correction to zero to trigger an update to the mixer and allow downstream monitors to
-        //recalculate the frequency error correction again
-        setChannelFrequencyCorrection(0);
+    /**
+     * Center frequency from the incoming index channel(s).
+     * @return frequency in hertz
+     */
+    public long getIndexCenterFrequency()
+    {
+        return mIndexCenterFrequency;
     }
 
     /**
      * Calculates the frequency offset required to mix the incoming signal to center the desired frequency
      * within the channel
      */
-    private long getFrequencyOffset()
+    public long getFrequencyOffset()
     {
-        return mIndexCenterFrequency - getTunerChannel().getFrequency() + mChannelFrequencyCorrection;
-    }
-
-    /**
-     * Updates the frequency offset being applied by the output processor.  Calculates the offset using the center
-     * frequency of the incoming polyphase channel results and the desired output channel frequency adjusted by any
-     * requested frequency correction value.
-     */
-    private void updateFrequencyOffset()
-    {
-        if(mPolyphaseChannelOutputProcessor != null)
-        {
-            mPolyphaseChannelOutputProcessor.setFrequencyOffset(getFrequencyOffset());
-        }
+        return mIndexCenterFrequency - getTunerChannel().getFrequency();
     }
 
     @Override

@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- *  Copyright (C) 2014-2020 Dennis Sheirer
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,20 +26,22 @@ import io.github.dsheirer.module.decode.dmr.message.data.block.DataBlock;
 import io.github.dsheirer.module.decode.dmr.message.data.header.HeaderMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.header.PacketSequenceHeader;
 import io.github.dsheirer.module.decode.dmr.message.data.header.ProprietaryDataHeader;
+import io.github.dsheirer.module.decode.dmr.message.data.header.UDTHeader;
 import io.github.dsheirer.module.decode.dmr.message.data.header.hytera.HyteraProprietaryDataHeader;
 import io.github.dsheirer.module.decode.dmr.message.data.header.motorola.MNISProprietaryDataHeader;
 import io.github.dsheirer.module.decode.dmr.message.type.ApplicationType;
 import io.github.dsheirer.module.decode.ip.UnknownPacket;
-import io.github.dsheirer.module.decode.ip.ars.ARSPacket;
+import io.github.dsheirer.module.decode.ip.hytera.sds.HyteraTokenHeader;
+import io.github.dsheirer.module.decode.ip.hytera.sms.HyteraSmsPacket;
 import io.github.dsheirer.module.decode.ip.ipv4.IPV4Header;
 import io.github.dsheirer.module.decode.ip.ipv4.IPV4Packet;
-import io.github.dsheirer.module.decode.ip.lrrp.LRRPPacket;
-import io.github.dsheirer.module.decode.ip.xcmp.XCMPPacket;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import io.github.dsheirer.module.decode.ip.mototrbo.ars.ARSPacket;
+import io.github.dsheirer.module.decode.ip.mototrbo.lrrp.LRRPPacket;
+import io.github.dsheirer.module.decode.ip.mototrbo.xcmp.XCMPPacket;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Converts a DMR packet sequence into a message
@@ -55,30 +57,74 @@ public class PacketSequenceMessageFactory
      */
     public static IMessage create(PacketSequence packetSequence)
     {
-        if(packetSequence != null && packetSequence.isComplete())
+        if(packetSequence != null)
         {
-            PacketSequenceHeader primaryHeader = packetSequence.getPacketSequenceHeader();
-            CorrectedBinaryMessage packet = getPacket(packetSequence, primaryHeader.isConfirmedData());
-
-            if(packet != null)
+            if(packetSequence.hasPacketSequenceHeader())
             {
-                switch(primaryHeader.getServiceAccessPoint())
+                PacketSequenceHeader primaryHeader = packetSequence.getPacketSequenceHeader();
+                boolean confirmed = primaryHeader.isConfirmedData();
+                CorrectedBinaryMessage packet = getPacket(packetSequence, primaryHeader.isConfirmedData());
+
+                if(packet != null)
                 {
-                    case IP_PACKET_DATA:
-                        return createIPPacketData(packetSequence, packet);
-                    case PROPRIETARY_DATA:
-                        return createProprietary(packetSequence, packet);
-                    case SHORT_DATA:
-                        return createDefinedShortData(packetSequence, packet);
-                    default:
-                        mLog.info("Unknown Packet SAP: " + primaryHeader.getServiceAccessPoint() + " - returning unknown packet");
-                        return new DMRPacketMessage(packetSequence, new UnknownPacket(packet, 0), packet,
-                            packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
+                    switch(primaryHeader.getServiceAccessPoint())
+                    {
+                        case IP_PACKET_DATA:
+                            return createIPPacketData(packetSequence, packet);
+                        case PROPRIETARY_DATA:
+                            return createProprietary(packetSequence, packet);
+                        case SHORT_DATA:
+                            return createDefinedShortData(packetSequence, packet);
+                        default:
+                            mLog.info("Unknown Packet SAP: " + primaryHeader.getServiceAccessPoint() + " - returning unknown packet");
+                            return new DMRPacketMessage(packetSequence, new UnknownPacket(packet, 0), packet,
+                                    packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
+                    }
+                }
+            }
+            else if(packetSequence.hasUDTHeader() && packetSequence.hasDataBlocks())
+            {
+                UDTHeader header = packetSequence.getUDTHeader();
+                if(header.isShortData())
+                {
+                    CorrectedBinaryMessage payload = getUnconfirmedPayload(packetSequence.getDataBlocks());
+                    return new UDTShortMessageService(header, payload);
                 }
             }
         }
 
-        //TODO: NOTE: Don't create a DMRPacketMessage unless we have a)Packet and b)Packet Sequence Header
+        return null;
+    }
+
+    /**
+     * Assembles the unconfirmed payload bytes from each of the data blocks into a contiguous binary message.
+     * @param dataBlocks to assemble
+     * @return assembled unconfirmed payload.
+     */
+    public static CorrectedBinaryMessage getUnconfirmedPayload(List<DataBlock> dataBlocks)
+    {
+        if(!dataBlocks.isEmpty())
+        {
+            int length = 0;
+
+            List<CorrectedBinaryMessage> fragments = new ArrayList<>();
+            for(DataBlock dataBlock: dataBlocks)
+            {
+                CorrectedBinaryMessage fragment = dataBlock.getUnConfirmedPayload();
+                length += fragment.size();
+                fragments.add(fragment);
+            }
+
+            CorrectedBinaryMessage combined = new CorrectedBinaryMessage(length);
+            int pointer = 0;
+            for(CorrectedBinaryMessage fragment: fragments)
+            {
+                combined.load(pointer, fragment);
+                pointer += fragment.size();
+            }
+
+            return combined;
+        }
 
         return null;
     }
@@ -93,6 +139,7 @@ public class PacketSequenceMessageFactory
     {
         HeaderMessage secondaryHeader = packetSequence.getProprietaryDataHeader();
 
+        //MotoTRBO MNIS
         if(secondaryHeader instanceof MNISProprietaryDataHeader)
         {
             ApplicationType applicationType = ((MNISProprietaryDataHeader)secondaryHeader).getApplicationType();
@@ -119,8 +166,18 @@ public class PacketSequenceMessageFactory
         }
         else if(secondaryHeader instanceof HyteraProprietaryDataHeader)
         {
-            return new DMRPacketMessage(packetSequence, new UnknownPacket(packet, 0), packet,
-                packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
+            HyteraTokenHeader hyteraTokenHeader = new HyteraTokenHeader(packet);
+
+            if(hyteraTokenHeader.isSMSMessage())
+            {
+                return new DMRPacketMessage(packetSequence, new HyteraSmsPacket(hyteraTokenHeader), packet,
+                        packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
+            }
+            else
+            {
+                return new DMRPacketMessage(packetSequence, new UnknownPacket(packet, 0), packet,
+                        packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
+            }
         }
         else
         {
@@ -222,5 +279,32 @@ public class PacketSequenceMessageFactory
         }
 
         return null;
+    }
+
+    /**
+     * Inspects the first 7 bits of each data block to see if a contiguous data block sequence number pattern is
+     * present.  This might indicate that the payload is a confirmed payload versus an unconfirmed payload when
+     * the packet sequence is not yet identified.
+     *
+     * @param dataBlocks to inspect.
+     * @return true if each of the data blocks have a sequential data block sequencing number.
+     */
+    public static boolean isConfirmedDataBlocks(List<DataBlock> dataBlocks)
+    {
+        int sequenceNumber = 0;
+
+        for(DataBlock dataBlock: dataBlocks)
+        {
+            if(dataBlock.getDataBlockSerialNumber() == sequenceNumber)
+            {
+                sequenceNumber++;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

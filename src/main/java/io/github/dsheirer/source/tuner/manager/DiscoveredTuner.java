@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2022 Dennis Sheirer
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,11 +24,10 @@ import io.github.dsheirer.source.tuner.ITunerErrorListener;
 import io.github.dsheirer.source.tuner.Tuner;
 import io.github.dsheirer.source.tuner.TunerClass;
 import io.github.dsheirer.source.tuner.configuration.TunerConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A discovered tuner that may be accessible for use.
@@ -54,6 +53,27 @@ public abstract class DiscoveredTuner implements ITunerErrorListener
     public TunerStatus getTunerStatus()
     {
         return mTunerStatus;
+    }
+
+    /**
+     * Logs current state of the tuner
+     */
+    public void logState()
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Discovered Tuner: ").append(getId());
+
+        if(hasTuner())
+        {
+            sb.append("\n\tTuner - Frequency:").append(getTuner().getTunerController().getFrequency());
+            sb.append("\n\tChannel Manager:").append(getTuner().getChannelSourceManager().getStateDescription());
+        }
+        else
+        {
+            sb.append("\n\tTuner - no tuner");
+        }
+
+        mLog.info(sb.toString());
     }
 
     /**
@@ -106,8 +126,8 @@ public abstract class DiscoveredTuner implements ITunerErrorListener
 
             if(mEnabled)
             {
-                setTunerStatus(TunerStatus.ENABLED);
                 start();
+                setTunerStatus(TunerStatus.ENABLED);
             }
             else
             {
@@ -199,7 +219,10 @@ public abstract class DiscoveredTuner implements ITunerErrorListener
      */
     public void addTunerStatusListener(IDiscoveredTunerStatusListener listener)
     {
-        mListeners.add(listener);
+        if(!mListeners.contains(listener))
+        {
+            mListeners.add(listener);
+        }
     }
 
     /**
@@ -235,6 +258,12 @@ public abstract class DiscoveredTuner implements ITunerErrorListener
         mLog.info("Tuner Error - Stopping - " + getId() + " Error: " + errorMessage);
         stop();
         setTunerStatus(TunerStatus.ERROR);
+    }
+
+    @Override
+    public void tunerRemoved()
+    {
+        setTunerStatus(TunerStatus.REMOVED);
     }
 
     /**

@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- *  Copyright (C) 2014-2020 Dennis Sheirer
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,8 +23,14 @@ import io.github.dsheirer.bits.CorrectedBinaryMessage;
 import io.github.dsheirer.module.decode.dmr.DMRSyncPattern;
 import io.github.dsheirer.module.decode.dmr.message.CACH;
 import io.github.dsheirer.module.decode.dmr.message.data.SlotType;
+import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.Hytera08Acknowledge;
+import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.Hytera68Acknowledge;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.HyteraAdjacentSiteInformation;
+import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.HyteraAloha;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.HyteraAnnouncement;
+import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.HyteraCsbko44;
+import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.HyteraCsbko47;
+import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.HyteraSmsAvailableNotification;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.HyteraXPTPreamble;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.HyteraXPTSiteState;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityMaxAloha;
@@ -49,6 +55,7 @@ import io.github.dsheirer.module.decode.dmr.message.data.csbk.standard.Aloha;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.standard.Clear;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.standard.MoveTSCC;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.standard.Preamble;
+import io.github.dsheirer.module.decode.dmr.message.data.csbk.standard.Protect;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.standard.acknowledge.Acknowledge;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.standard.acknowledge.AcknowledgeStatus;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.standard.acknowledge.RegistrationAccepted;
@@ -78,7 +85,6 @@ import io.github.dsheirer.module.decode.dmr.message.data.mbc.MBCContinuationBloc
 import io.github.dsheirer.module.decode.dmr.message.data.mbc.UnknownMultiCSBK;
 import io.github.dsheirer.module.decode.dmr.message.type.AnnouncementType;
 import io.github.dsheirer.module.decode.dmr.message.type.ServiceKind;
-
 import java.util.List;
 
 /**
@@ -200,6 +206,9 @@ public class CSBKMessageFactory
                 case STANDARD_PRIVATE_VOICE_CHANNEL_GRANT:
                     csbk = new PrivateVoiceChannelGrant(pattern, message, cach, slotType, timestamp, timeslot);
                     break;
+                case STANDARD_PROTECT:
+                    csbk = new Protect(pattern, message, cach, slotType, timestamp, timeslot);
+                    break;
                 case STANDARD_TALKGROUP_DATA_CHANNEL_GRANT_SINGLE_ITEM:
                     csbk = new TalkgroupDataChannelGrant(pattern, message, cach, slotType, timestamp, timeslot);
                     break;
@@ -213,6 +222,9 @@ public class CSBKMessageFactory
                     csbk = new Preamble(pattern, message, cach, slotType, timestamp, timeslot);
                     break;
 
+                case HYTERA_68_ALOHA:
+                    csbk = new HyteraAloha(pattern, message, cach, slotType, timestamp, timeslot);
+                    break;
                 case HYTERA_08_ANNOUNCEMENT:
                 case HYTERA_68_ANNOUNCEMENT:
                     AnnouncementType announcementType = HyteraAnnouncement.getAnnouncementType(message);
@@ -226,13 +238,27 @@ public class CSBKMessageFactory
                             break;
                     }
                     break;
-                case HYTERA_XPT_PREAMBLE:
+                case HYTERA_68_XPT_PREAMBLE:
                     csbk = new HyteraXPTPreamble(pattern, message, cach, slotType, timestamp, timeslot);
                     break;
-                case HYTERA_XPT_SITE_STATE:
+                case HYTERA_68_XPT_SITE_STATE:
                     csbk = new HyteraXPTSiteState(pattern, message, cach, slotType, timestamp, timeslot);
                     break;
-
+                case HYTERA_08_ACKNOWLEDGE:
+                    csbk = new Hytera08Acknowledge(pattern, message, cach, slotType, timestamp, timeslot);
+                    break;
+                case HYTERA_08_CSBKO_44:
+                    csbk = new HyteraCsbko44(pattern, message, cach, slotType, timestamp, timeslot);
+                    break;
+                case HYTERA_08_CSBKO_47:
+                    csbk = new HyteraCsbko47(pattern, message, cach, slotType, timestamp, timeslot);
+                    break;
+                case HYTERA_68_ACKNOWLEDGE:
+                    csbk = new Hytera68Acknowledge(pattern, message, cach, slotType, timestamp, timeslot);
+                    break;
+                case HYTERA_68_CSBKO_62:
+                    csbk = new HyteraSmsAvailableNotification(pattern, message, cach, slotType, timestamp, timeslot);
+                    break;
                 case MOTOROLA_CAPMAX_ALOHA:
                     csbk = new CapacityMaxAloha(pattern, message, cach, slotType, timestamp, timeslot);
                     break;

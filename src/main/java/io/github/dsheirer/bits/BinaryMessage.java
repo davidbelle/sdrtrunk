@@ -1,35 +1,40 @@
 /*
+ * *****************************************************************************
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
- *  * ******************************************************************************
- *  * Copyright (C) 2014-2019 Dennis Sheirer
- *  *
- *  * This program is free software: you can redistribute it and/or modify
- *  * it under the terms of the GNU General Public License as published by
- *  * the Free Software Foundation, either version 3 of the License, or
- *  * (at your option) any later version.
- *  *
- *  * This program is distributed in the hope that it will be useful,
- *  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  * GNU General Public License for more details.
- *  *
- *  * You should have received a copy of the GNU General Public License
- *  * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *  * *****************************************************************************
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ * ****************************************************************************
  */
 package io.github.dsheirer.bits;
 
 import io.github.dsheirer.edac.CRC;
+import java.io.UnsupportedEncodingException;
+import java.util.BitSet;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.math3.util.FastMath;
-
-import java.util.BitSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BinaryMessage extends BitSet
 {
     private static final long serialVersionUID = 1L;
+    private static final Logger LOGGER = LoggerFactory.getLogger(BinaryMessage.class);
+    private static final int[] CHARACTER_7_BIT = new int[]{0, 1, 2, 3, 4, 5, 6};
+    private static final int[] CHARACTER_8_BIT = new int[]{0, 1, 2, 3, 4, 5, 6, 7};
+    private static final String UTF_8 = "UTF-8";
+    private static final String GB2312 = "GB2312";
+
 
     /**
      * Logical (ie constructed) size of this bitset, despite the actual size of
@@ -1039,6 +1044,51 @@ public class BinaryMessage extends BitSet
     }
 
     /**
+     * Loads the hexadecimal text into a binary message
+     * @param hex text to load from
+     * @return loaded binary message
+     */
+    public static BinaryMessage loadHex(String hex)
+    {
+        if(!hex.matches("[0-9A-F]*"))
+        {
+            throw new IllegalArgumentException("Message must contain only 0-9 and A-F hexadecimal characters");
+        }
+
+        int length = hex.length() / 2;
+
+        if(length * 2 < hex.length())
+        {
+            length++;
+        }
+
+        BinaryMessage buffer = new BinaryMessage(length * 8);
+
+        int bufferOffset = 0;
+        for(int x = 0; x < hex.length(); x += 2)
+        {
+            int endIndex = x + 2;
+            if(endIndex > hex.length())
+            {
+                endIndex--;
+            }
+
+            String rawHex = hex.substring(x, endIndex);
+
+            if(rawHex.length() == 1)
+            {
+                rawHex = rawHex + "0";
+            }
+
+            int value = Integer.parseInt(rawHex, 16);
+            buffer.setByte(bufferOffset, (byte)(value & 0xFF));
+            bufferOffset += 8;
+        }
+
+        return buffer;
+    }
+
+    /**
      * Left rotates the bits between start and end indices, number of places.
      */
     public void rotateLeft(int places, int startIndex, int endIndex)
@@ -1133,19 +1183,121 @@ public class BinaryMessage extends BitSet
         this.xor(mask);
     }
 
-    public static void main(String[] args)
+    /**
+     * Parse ISO-7 bit characters from the message starting at the offset.
+     * @param offset where to start parsing.
+     * @param characterCount number of characters to parse
+     * @return parsed message.
+     */
+    public String parseISO7(int offset, int characterCount)
     {
-        BinaryMessage message = new BinaryMessage(10);
-        message.set(1);
-        message.set(4);
-        message.set(5);
-        message.set(8);
-        message.set(9);
+        byte[] bytes = new byte[characterCount];
 
-        System.out.println("Hex: " + message.toHexString() + " Size:" + message.size());
-        for(int x = 0; x < 10; x++)
+        for(int x = 0; x < characterCount; x++)
         {
-            System.out.println(x + ": " + message.getHex(x, x + 10));
+            bytes[x] = getByte(CHARACTER_7_BIT, x * 7 + offset);
         }
+
+        return new String(bytes);
+    }
+
+    /**
+     * Parse ISO-8 bit characters from the message starting at the offset.
+     * @param offset where to start parsing.
+     * @param characterCount number of characters to parse
+     * @return parsed message.
+     */
+    public String parseISO8(int offset, int characterCount)
+    {
+        byte[] bytes = new byte[characterCount];
+
+        for(int x = 0; x < characterCount; x++)
+        {
+            bytes[x] = getByte(CHARACTER_8_BIT, x * 8 + offset);
+        }
+
+        return new String(bytes);
+    }
+
+    /**
+     * Parse UTF-8 characters from the message starting at the offset.
+     * @param offset where to start parsing.
+     * @param characterCount number of characters to parse
+     * @return parsed message.
+     * @throws UnsupportedEncodingException if UTF-8 encoding is not supported.
+     */
+    public String parseUTF8(int offset, int characterCount) throws UnsupportedEncodingException
+    {
+        byte[] bytes = new byte[characterCount];
+
+        for(int x = 0; x < characterCount; x++)
+        {
+            bytes[x] = getByte(CHARACTER_8_BIT, x * 8 + offset);
+        }
+
+        return new String(bytes, UTF_8);
+    }
+
+    /**
+     * Parse GB2312 Simplified Chinese Characters from the message starting at the offset.
+     * @param offset where to start parsing.
+     * @param characterCount number of characters to parse
+     * @return parsed message.
+     * @throws UnsupportedEncodingException if GB2312 encoding is not supported.
+     */
+    public String parseGB2312(int offset, int characterCount) throws UnsupportedEncodingException
+    {
+        int length = characterCount * 2;
+        byte[] bytes = new byte[length];
+
+        for(int x = 0; x < length; x++)
+        {
+            bytes[x] = getByte(CHARACTER_8_BIT, x * 8 + offset);
+        }
+
+        return new String(bytes, GB2312);
+    }
+
+    /**
+     * Parse 16-bit unicode characters from the message starting at the offset.
+     * @param offset where to start parsing.
+     * @param characterCount number of characters to parse
+     * @return parsed message.
+     */
+    public String parseUnicode(int offset, int characterCount)
+    {
+        int length = characterCount * 2;
+        byte[] bytes = new byte[length];
+
+        for(int x = 0; x < length; x++)
+        {
+            bytes[x] = getByte(CHARACTER_8_BIT, x * 8 + offset);
+        }
+
+        return new String(bytes);
+    }
+
+    /**
+     * Parse 4-bit Binary Coded Decimal (BCD) characters from the message starting at the offset.
+     * @param offset where to start parsing.
+     * @param characterCount number of characters to parse
+     * @return parsed message.
+     */
+    public String parseBCD4(int offset, int characterCount)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        int count = 0;
+
+        while(count < characterCount)
+        {
+            int nibble = getNibble(offset);
+            //This will parse digits 0-9 and anything higher will parse as hexadecimal A-F
+            sb.append(Integer.toHexString(nibble).toUpperCase());
+            offset += 4;
+            count++;
+        }
+
+        return sb.toString();
     }
 }

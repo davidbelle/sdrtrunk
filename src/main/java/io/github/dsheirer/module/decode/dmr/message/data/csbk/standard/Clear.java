@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- *  Copyright (C) 2014-2020 Dennis Sheirer
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,15 +29,14 @@ import io.github.dsheirer.module.decode.dmr.channel.DMRLogicalChannel;
 import io.github.dsheirer.module.decode.dmr.channel.DMRTier3Channel;
 import io.github.dsheirer.module.decode.dmr.channel.ITimeslotFrequencyReceiver;
 import io.github.dsheirer.module.decode.dmr.channel.TimeslotFrequency;
-import io.github.dsheirer.module.decode.dmr.identifier.DMRRadio;
 import io.github.dsheirer.module.decode.dmr.identifier.DMRTalkgroup;
+import io.github.dsheirer.module.decode.dmr.identifier.DmrTier3Radio;
 import io.github.dsheirer.module.decode.dmr.message.CACH;
 import io.github.dsheirer.module.decode.dmr.message.data.SlotType;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.CSBKMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.mbc.MBCContinuationBlock;
 import io.github.dsheirer.module.decode.dmr.message.type.AbsoluteChannelParameters;
 import io.github.dsheirer.module.decode.dmr.message.type.DataType;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -118,6 +117,7 @@ public class Clear extends CSBKMessage implements ITimeslotFrequencyReceiver
         sb.append(" CLEAR - RETURN TO ").append(getMoveToChannel());
         sb.append(" FM:").append(getSourceRadio());
         sb.append(" TO:").append(getDestinationId());
+        sb.append(" MSG:").append(getMessage().toHexString());
         return sb.toString();
     }
 
@@ -141,7 +141,7 @@ public class Clear extends CSBKMessage implements ITimeslotFrequencyReceiver
     {
         if(mSourceRadio == null)
         {
-            mSourceRadio = DMRRadio.createFrom(getMessage().getInt(SOURCE));
+            mSourceRadio = DmrTier3Radio.createFrom(getMessage().getInt(SOURCE));
         }
 
         return mSourceRadio;
@@ -157,7 +157,7 @@ public class Clear extends CSBKMessage implements ITimeslotFrequencyReceiver
             }
             else
             {
-                mDestinationId = DMRRadio.createTo(getMessage().getInt(DESTINATION));
+                mDestinationId = DmrTier3Radio.createTo(getMessage().getInt(DESTINATION));
             }
         }
 

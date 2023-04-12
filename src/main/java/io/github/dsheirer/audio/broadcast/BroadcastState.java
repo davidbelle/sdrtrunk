@@ -1,6 +1,6 @@
-/*******************************************************************************
- * sdrtrunk
- * Copyright (C) 2014-2016 Dennis Sheirer
+/*
+ * *****************************************************************************
+ * Copyright (C) 2014-2022 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,8 +14,8 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
- ******************************************************************************/
+ * ****************************************************************************
+ */
 package io.github.dsheirer.audio.broadcast;
 
 public enum BroadcastState
@@ -103,10 +103,10 @@ public enum BroadcastState
     private String mLabel;
     private boolean mErrorState;
 
-    private BroadcastState(String label, boolean connected)
+    BroadcastState(String label, boolean errorState)
     {
         mLabel = label;
-        mErrorState = connected;
+        mErrorState = errorState;
     }
 
     public String toString()
