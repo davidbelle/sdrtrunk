@@ -53,7 +53,7 @@ repositories {
     maven { url "https://jitpack.io" }
 }
 
-version = '0.6.0-alpha4'
+version = '0.6.0-alpha5'
 
 //Java 19 is required for this version of the Project Panama preview/incubator feature
 java {
@@ -352,5 +352,4 @@ tasks.register('runtimeZipOthers', org.beryx.runtime.RuntimeZipTask) {rt ->
     configure(rt, jvmArgsLinux);
 }
 
-sourceCompatibility = JavaVersion.VERSION_19
-targetCompatibility = JavaVersion.VERSION_19
+

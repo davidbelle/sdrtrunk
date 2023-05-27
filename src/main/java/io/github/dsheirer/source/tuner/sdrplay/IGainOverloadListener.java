@@ -17,35 +17,14 @@
  * ****************************************************************************
  */
 
-package io.github.dsheirer.gui.preference;
+package io.github.dsheirer.source.tuner.sdrplay;
+
+import io.github.dsheirer.source.tuner.sdrplay.api.device.TunerSelect;
 
 /**
- * Preference editor tree node enumeration.
+ * Listener interface to receive notifications of gain overload in the RSP device.
  */
-public enum PreferenceEditorType
+public interface IGainOverloadListener
 {
-    APPLICATION("Application"),
-    CHANNEL_EVENT("Channel Events"),
-    DIRECTORY("Directories"),
-    JMBE_LIBRARY("JMBE Audio Library"),
-    AUDIO_MP3("MP3"),
-    AUDIO_RECORD("Record"),
-    AUDIO_OUTPUT("Output/Tones"),
-    AUDIO_DUPLICATE_CALL_DETECTION("Duplicate Calls"),
-    SOURCE_TUNERS("Tuners"),
-    TALKGROUP_FORMAT("Talkgroup & Radio ID"),
-    VECTOR_CALIBRATION("Vector Calibration"),
-    DEFAULT("Default");
-
-    private String mLabel;
-
-    PreferenceEditorType(String label)
-    {
-        mLabel = label;
-    }
-
-    public String toString()
-    {
-        return mLabel;
-    }
+    void notifyGainOverload(TunerSelect tunerSelect);
 }
