@@ -44,7 +44,7 @@ import io.github.dsheirer.module.decode.dmr.message.data.DataMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.CSBKMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityMaxAloha;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityPlusNeighbors;
-import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityPlusSystemStatus;
+import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityPlusSiteStatus;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.ConnectPlusDataChannelGrant;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.ConnectPlusVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.standard.Aloha;
@@ -64,6 +64,7 @@ import io.github.dsheirer.module.decode.dmr.message.data.lc.full.TalkerAliasComp
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.UnitToUnitVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.hytera.HyteraGroupVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.hytera.HyteraUnitToUnitVoiceChannelUser;
+import io.github.dsheirer.module.decode.dmr.message.data.lc.full.motorola.CapacityPlusEncryptedVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.motorola.CapacityPlusGroupVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.motorola.CapacityPlusWideAreaVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.shorty.CapacityPlusRestChannel;
@@ -663,10 +664,10 @@ public class DMRDecoderState extends TimeslotDecoderState
                     updateRestChannel(((CapacityPlusNeighbors)csbk).getRestChannel());
                 }
                 break;
-            case MOTOROLA_CAPPLUS_SYSTEM_STATUS:
-                if(csbk instanceof CapacityPlusSystemStatus)
+            case MOTOROLA_CAPPLUS_SITE_STATUS:
+                if(csbk instanceof CapacityPlusSiteStatus)
                 {
-                    CapacityPlusSystemStatus cpss = (CapacityPlusSystemStatus)csbk;
+                    CapacityPlusSiteStatus cpss = (CapacityPlusSiteStatus)csbk;
 
                     //Channel rotation monitor normally uses only CONTROL state, so when we detect that we're a
                     //Capacity plus system, add ACTIVE as an active state to the monitor.  This can be requested repeatedly.
@@ -964,13 +965,27 @@ public class DMRDecoderState extends TimeslotDecoderState
                     updateRestChannel(((CapacityPlusRestChannel)message).getRestChannel());
                 }
                 break;
-            case FULL_CAPACITY_PLUS_GROUP_VOICE_CHANNEL_USER:
-                if(message instanceof CapacityPlusGroupVoiceChannelUser)
+            case FULL_CAPACITY_PLUS_ENCRYPTED_VOICE_CHANNEL_USER:
+                if(message instanceof CapacityPlusEncryptedVoiceChannelUser cpgvcu)
                 {
-                    CapacityPlusGroupVoiceChannelUser cpgvcu = (CapacityPlusGroupVoiceChannelUser)message;
-
-                    //This is the current channel - what do we do with the voice channel number?
-//                    updateRestChannel(cpgvcu.getVoiceChannel());
+                    if(isTerminator)
+                    {
+                        getIdentifierCollection().remove(Role.FROM);
+                        getIdentifierCollection().update(cpgvcu.getTalkgroup());
+                    }
+                    else
+                    {
+                        getIdentifierCollection().update(message.getIdentifiers());
+                        ServiceOptions serviceOptions = cpgvcu.getServiceOptions();
+                        updateCurrentCall(serviceOptions.isEncrypted() ? DecodeEventType.CALL_GROUP_ENCRYPTED :
+                                DecodeEventType.CALL_GROUP, serviceOptions.toString(), message.getTimestamp());
+                    }
+                }
+                break;
+            case FULL_CAPACITY_PLUS_GROUP_VOICE_CHANNEL_USER:
+                if(message instanceof CapacityPlusGroupVoiceChannelUser cpgvcu)
+                {
+                    updateRestChannel(cpgvcu.getRestChannel());
 
                     if(isTerminator)
                     {
