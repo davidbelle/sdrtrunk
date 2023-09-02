@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- *  Copyright (C) 2014-2020 Dennis Sheirer
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@ package io.github.dsheirer.module.decode.dmr.message.data.csbk.standard.grant;
 import io.github.dsheirer.bits.CorrectedBinaryMessage;
 import io.github.dsheirer.module.decode.dmr.DMRSyncPattern;
 import io.github.dsheirer.module.decode.dmr.channel.DMRChannel;
-import io.github.dsheirer.module.decode.dmr.channel.DMRLogicalChannel;
 import io.github.dsheirer.module.decode.dmr.channel.DMRTier3Channel;
 import io.github.dsheirer.module.decode.dmr.channel.ITimeslotFrequencyReceiver;
 import io.github.dsheirer.module.decode.dmr.channel.TimeslotFrequency;
@@ -32,7 +31,6 @@ import io.github.dsheirer.module.decode.dmr.message.data.csbk.CSBKMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.mbc.MBCContinuationBlock;
 import io.github.dsheirer.module.decode.dmr.message.type.AbsoluteChannelParameters;
 import io.github.dsheirer.module.decode.dmr.message.type.DataType;
-
 import java.util.List;
 
 /**
@@ -159,11 +157,11 @@ public abstract class ChannelGrant extends CSBKMessage implements ITimeslotFrequ
      * Logical Slot Number(s) for channels contained in this message
      */
     @Override
-    public int[] getLogicalTimeslotNumbers()
+    public int[] getLogicalChannelNumbers()
     {
-        if(getChannel() instanceof DMRLogicalChannel)
+        if(getChannel() != null)
         {
-            return ((DMRLogicalChannel)getChannel()).getLSNArray();
+            return getChannel().getLogicalChannelNumbers();
         }
 
         return new int[0];
@@ -176,17 +174,9 @@ public abstract class ChannelGrant extends CSBKMessage implements ITimeslotFrequ
     @Override
     public void apply(List<TimeslotFrequency> timeslotFrequencies)
     {
-        if(getChannel() instanceof DMRLogicalChannel)
+        if(getChannel() != null)
         {
-            DMRLogicalChannel channel = (DMRLogicalChannel)getChannel();
-
-            for(TimeslotFrequency timeslotFrequency: timeslotFrequencies)
-            {
-                if(channel.getLogicalSlotNumber() == timeslotFrequency.getNumber())
-                {
-                    channel.setTimeslotFrequency(timeslotFrequency);
-                }
-            }
+            getChannel().apply(timeslotFrequencies);
         }
     }
 }

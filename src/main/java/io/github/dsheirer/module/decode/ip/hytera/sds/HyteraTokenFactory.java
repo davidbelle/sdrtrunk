@@ -37,11 +37,13 @@ public class HyteraTokenFactory
         return switch(token)
         {
             case ID_DESTINATION -> new DestinationId(message);
-            case ENCODING -> new Encoding(message);
             case ID_MESSAGE -> new MessageId(message);
-            case PAYLOAD -> new Payload(message);
-            case MESSAGE_HEADER -> new MessageHeader(message);
             case ID_SOURCE -> new SourceId(message);
+            case ENCODING -> new Encoding(message);
+            case PAYLOAD -> new Payload(message);
+            case RRS_UNKNOWN -> new RrsUnknown(message);
+            case TEXT_MESSAGE_SERVICE_HEADER -> new TmsMessageHeader(message);
+            case RADIO_REGISTRATION_SERVICE_HEADER -> new RrsMessageHeader(message);
             default -> new Unknown(message);
         };
     }

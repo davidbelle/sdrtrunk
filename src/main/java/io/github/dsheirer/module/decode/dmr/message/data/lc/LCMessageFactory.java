@@ -23,6 +23,7 @@ import io.github.dsheirer.bits.CorrectedBinaryMessage;
 import io.github.dsheirer.edac.CRCDMR;
 import io.github.dsheirer.edac.Checksum_5_DMR;
 import io.github.dsheirer.edac.ReedSolomon_12_9_4_DMR;
+import io.github.dsheirer.module.decode.dmr.message.data.lc.full.EncryptionParameters;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.FullLCMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.GPSInformation;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.GroupVoiceChannelUser;
@@ -37,8 +38,8 @@ import io.github.dsheirer.module.decode.dmr.message.data.lc.full.hytera.HyteraGr
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.hytera.HyteraTerminator;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.hytera.HyteraUnitToUnitVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.motorola.CapacityPlusEncryptedVoiceChannelUser;
-import io.github.dsheirer.module.decode.dmr.message.data.lc.full.motorola.CapacityPlusGroupVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.motorola.CapacityPlusWideAreaVoiceChannelUser;
+import io.github.dsheirer.module.decode.dmr.message.data.lc.full.motorola.MotorolaGroupVoiceChannelUser;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.shorty.ActivityUpdateMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.shorty.CapacityPlusRestChannel;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.shorty.ConnectPlusControlChannel;
@@ -59,8 +60,20 @@ public class LCMessageFactory
 {
     private final static Logger mLog = LoggerFactory.getLogger(LCMessageFactory.class);
     private static final ReedSolomon_12_9_4_DMR REED_SOLOMON_12_9_4_DMR = new ReedSolomon_12_9_4_DMR();
-    private static int TERMINATOR_LINK_CONTROL_CRC_MASK = 0x99;
-    private static int VOICE_LINK_CONTROL_CRC_MASK = 0x96;
+    private static final int TERMINATOR_LINK_CONTROL_CRC_MASK = 0x99;
+    private static final int VOICE_LINK_CONTROL_CRC_MASK = 0x96;
+
+    /**
+     * Creates a full link control message specifically for the PI_HEADER message type.
+     * @param message bits
+     * @param timestamp of the original message
+     * @param timeslot of the original message
+     * @return encryption parameters link control.
+     */
+    public static FullLCMessage createFullEncryption(CorrectedBinaryMessage message, long timestamp, int timeslot)
+    {
+        return new EncryptionParameters(message, timestamp, timeslot);
+    }
 
     /**
      * Creates a full link control message
@@ -112,8 +125,8 @@ public class LCMessageFactory
             case FULL_STANDARD_TERMINATOR_DATA:
                 flc = new TerminatorData(message, timestamp, timeslot);
                 break;
-            case FULL_CAPACITY_PLUS_GROUP_VOICE_CHANNEL_USER:
-                flc = new CapacityPlusGroupVoiceChannelUser(message, timestamp, timeslot);
+            case FULL_MOTOROLA_GROUP_VOICE_CHANNEL_USER:
+                flc = new MotorolaGroupVoiceChannelUser(message, timestamp, timeslot);
                 break;
             case FULL_CAPACITY_PLUS_ENCRYPTED_VOICE_CHANNEL_USER:
                 flc = new CapacityPlusEncryptedVoiceChannelUser(message, timestamp, timeslot);
@@ -121,7 +134,10 @@ public class LCMessageFactory
             case FULL_CAPACITY_PLUS_WIDE_AREA_VOICE_CHANNEL_USER:
                 flc = new CapacityPlusWideAreaVoiceChannelUser(message, timestamp, timeslot);
                 break;
-
+            case FULL_ENCRYPTION_PARAMETERS:
+                flc = new EncryptionParameters(message, timestamp, timeslot);
+                valid = flc.isValid();
+                break;
             case FULL_HYTERA_GROUP_VOICE_CHANNEL_USER:
                 flc = new HyteraGroupVoiceChannelUser(message, timestamp, timeslot);
                 break;

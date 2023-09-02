@@ -87,7 +87,7 @@ public class DecodeEventPanel extends JPanel implements Listener<ProcessingChain
     {
         MyEventBus.getGlobalEventBus().register(this);
 
-        setLayout(new MigLayout("insets 0 0 0 0", "[grow,fill]", "[grow,fill]"));
+        setLayout(new MigLayout("insets 0 0 0 0", "[grow,fill]", "[][grow,fill]"));
         mIconModel = iconModel;
         mAliasModel = aliasModel;
         mUserPreferences = userPreferences;
@@ -221,7 +221,7 @@ public class DecodeEventPanel extends JPanel implements Listener<ProcessingChain
                     sb.append(",");
                 }
 
-                if(identifier.getForm() == Form.TALKGROUP)
+                if(identifier.getForm() == Form.TALKGROUP || identifier.getForm() == Form.RADIO || identifier.getForm() == Form.PATCH_GROUP)
                 {
                     sb.append(mUserPreferences.getTalkgroupFormatPreference().format(identifier));
                 }

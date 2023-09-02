@@ -25,14 +25,19 @@ import io.github.dsheirer.message.IMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.block.DataBlock;
 import io.github.dsheirer.module.decode.dmr.message.data.header.HeaderMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.header.PacketSequenceHeader;
-import io.github.dsheirer.module.decode.dmr.message.data.header.ProprietaryDataHeader;
 import io.github.dsheirer.module.decode.dmr.message.data.header.UDTHeader;
-import io.github.dsheirer.module.decode.dmr.message.data.header.hytera.HyteraProprietaryDataHeader;
+import io.github.dsheirer.module.decode.dmr.message.data.header.hytera.HyteraDataEncryptionHeader;
 import io.github.dsheirer.module.decode.dmr.message.data.header.motorola.MNISProprietaryDataHeader;
+import io.github.dsheirer.module.decode.dmr.message.data.header.motorola.MotorolaDataEncryptionHeader;
 import io.github.dsheirer.module.decode.dmr.message.type.ApplicationType;
+import io.github.dsheirer.module.decode.dmr.message.type.DataPacketFormat;
+import io.github.dsheirer.module.decode.dmr.message.type.ServiceAccessPoint;
+import io.github.dsheirer.module.decode.ip.DefinedShortDataPacket;
 import io.github.dsheirer.module.decode.ip.UnknownPacket;
+import io.github.dsheirer.module.decode.ip.hytera.rrs.HyteraRrsPacket;
 import io.github.dsheirer.module.decode.ip.hytera.sds.HyteraTokenHeader;
 import io.github.dsheirer.module.decode.ip.hytera.sds.HyteraUnknownPacket;
+import io.github.dsheirer.module.decode.ip.hytera.shortdata.HyteraShortDataPacket;
 import io.github.dsheirer.module.decode.ip.hytera.sms.HyteraSmsPacket;
 import io.github.dsheirer.module.decode.ip.ipv4.IPV4Header;
 import io.github.dsheirer.module.decode.ip.ipv4.IPV4Packet;
@@ -164,24 +169,46 @@ public class PacketSequenceMessageFactory
                         packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
             }
         }
-        else if(secondaryHeader instanceof HyteraProprietaryDataHeader)
+        else if(secondaryHeader instanceof HyteraDataEncryptionHeader hdeh)
         {
-            HyteraTokenHeader hyteraTokenHeader = new HyteraTokenHeader(packet);
+            ServiceAccessPoint sap = hdeh.getServiceAccessPoint();
 
-            if(hyteraTokenHeader.isSMSMessage())
+            switch(sap)
             {
-                return new DMRPacketMessage(packetSequence, new HyteraSmsPacket(hyteraTokenHeader), packet,
-                        packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
+                case SHORT_DATA:
+                    return new DMRPacketMessage(packetSequence, new HyteraShortDataPacket(packetSequence, packet), packet,
+                            packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
+                case PROPRIETARY_DATA:
+                    HyteraTokenHeader hyteraTokenHeader = new HyteraTokenHeader(packet);
+                    if(hyteraTokenHeader.isSMSMessage())
+                    {
+                        return new DMRPacketMessage(packetSequence, new HyteraSmsPacket(hyteraTokenHeader), packet,
+                                packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
+                    }
+                    else
+                    {
+                        return new DMRPacketMessage(packetSequence, new HyteraUnknownPacket(hyteraTokenHeader), packet,
+                                packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
+                    }
+                default:
+                    return new DMRPacketMessage(packetSequence, new UnknownPacket(packet, 0), packet,
+                            packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
             }
-            else
-            {
-                return new DMRPacketMessage(packetSequence, new HyteraUnknownPacket(hyteraTokenHeader), packet,
-                        packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
-            }
+        }
+        else if(secondaryHeader instanceof MotorolaDataEncryptionHeader &&
+                packetSequence.getPacketSequenceHeader().getDataPacketFormat() == DataPacketFormat.DEFINED_SHORT_DATA)
+        {
+            return createDefinedShortData(packetSequence, packet);
         }
         else
         {
-            mLog.info("Unknown Proprietary Packet Header Type - creating unknown packet.");
+            if(packetSequence.getProprietaryDataHeader() != null)
+            {
+                mLog.info("Unknown Proprietary Packet Header Type - creating unknown packet. Data Packet Format: " +
+                        packetSequence.getPacketSequenceHeader().getDataPacketFormat() + " Proprietary Header: " +
+                        packetSequence.getProprietaryDataHeader().getClass());
+            }
+
             return new DMRPacketMessage(packetSequence, new UnknownPacket(packet, 0), packet,
                 packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
         }
@@ -217,9 +244,19 @@ public class PacketSequenceMessageFactory
      */
     public static IMessage createDefinedShortData(PacketSequence packetSequence, CorrectedBinaryMessage packet)
     {
-        mLog.info("Unknown Short Data Packet Header Type - creating unknown packet.");
-        return new DMRPacketMessage(packetSequence, new UnknownPacket(packet, 0), packet,
-            packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
+        //Test to see if this is Hytera Radio Registration Service (RRS)
+        HyteraTokenHeader hyteraTokenHeader = new HyteraTokenHeader(packet);
+
+        if(hyteraTokenHeader.isRRSMessage())
+        {
+            return new DMRPacketMessage(packetSequence, new HyteraRrsPacket(hyteraTokenHeader), packet,
+                    packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
+        }
+        else
+        {
+            return new DMRPacketMessage(packetSequence, new DefinedShortDataPacket(packet, 0), packet,
+                    packetSequence.getTimeslot(), packetSequence.getPacketSequenceHeader().getTimestamp());
+        }
     }
 
     /**
@@ -235,7 +272,7 @@ public class PacketSequenceMessageFactory
 
         if(sequence.hasProprietaryDataHeader())
         {
-            CorrectedBinaryMessage prefix = ((ProprietaryDataHeader)sequence.getProprietaryDataHeader()).getPacketPrefix();
+            CorrectedBinaryMessage prefix = sequence.getProprietaryDataHeader().getPacketPrefix();
 
             if(prefix != null)
             {

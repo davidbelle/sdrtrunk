@@ -37,7 +37,7 @@ public class CapacityPlusEncryptedVoiceChannelUser extends CapacityPlusVoiceChan
     private static final int[] TARGET_ADDRESS = new int[]{32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47};
     private static final int[] UNKNOWN_2 = new int[]{48, 49, 50, 51, 52, 53, 54, 55};
     private static final int[] SOURCE_ADDRESS = new int[]{56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71};
-    private static final int[] UNKNOWN_3 = new int[]{72, 73, 74, 75, 76, 77, 78, 79};
+    //Reed Solomon FEC: 72-95
 
     private RadioIdentifier mRadio;
     private TalkgroupIdentifier mTalkgroup;
@@ -93,10 +93,6 @@ public class CapacityPlusEncryptedVoiceChannelUser extends CapacityPlusVoiceChan
     public String getUnknown2()
     {
         return getMessage().getHex(UNKNOWN_2, 2);
-    }
-    public String getUnknown3()
-    {
-        return getMessage().getHex(UNKNOWN_3, 2);
     }
 
     /**

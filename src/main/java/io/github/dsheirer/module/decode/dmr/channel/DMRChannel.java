@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- *  Copyright (C) 2014-2020 Dennis Sheirer
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@ import io.github.dsheirer.identifier.Role;
 import io.github.dsheirer.identifier.integer.IntegerIdentifier;
 import io.github.dsheirer.module.decode.p25.phase1.message.IFrequencyBand;
 import io.github.dsheirer.protocol.Protocol;
+import java.util.List;
+import java.util.Objects;
 import org.apache.commons.lang3.Validate;
 
 /**
@@ -33,8 +35,9 @@ import org.apache.commons.lang3.Validate;
  *
  * Note: timeslots are tracked as 1 and 2
  */
-public abstract class DMRChannel extends IntegerIdentifier implements IChannelDescriptor
+public abstract class DMRChannel extends IntegerIdentifier implements IChannelDescriptor,  ITimeslotFrequencyReceiver
 {
+    private TimeslotFrequency mTimeslotFrequency;
     private int mTimeslot;
 
     /**
@@ -56,12 +59,22 @@ public abstract class DMRChannel extends IntegerIdentifier implements IChannelDe
     }
 
     /**
-     * Repeater number for the channel.
+     * Repeater number aka Logical Channel Number (LCN) for the channel.
      */
-    public int getRepeater()
+    public int getChannelNumber()
     {
         return getValue();
     }
+
+    /**
+     * Convenience method to format the single channel number as an array for TimeslotFrequency matching.
+     * @return channel number as an integer array.
+     */
+    public int[] getLogicalChannelNumbers()
+    {
+        return new int[]{getChannelNumber()};
+    }
+
 
     /**
      * Timeslot for the channel.
@@ -70,36 +83,6 @@ public abstract class DMRChannel extends IntegerIdentifier implements IChannelDe
     public int getTimeslot()
     {
         return mTimeslot;
-    }
-
-    /**
-     * Logical slot number for this channel.  LSN is a 1-based index value where repeater one, timeslot 1 is
-     * LSN 1, timeslot 2 is LSN 2, etc.
-     *
-     * Formula: LSN = ((channel - 1) * 2) + timeslot
-     *
-     * @return logical slot number, a 1-based index value
-     */
-    public int getLogicalSlotNumber()
-    {
-        int repeater = getRepeater();
-
-        if(repeater > 0)
-        {
-            return ((repeater - 1) * 2) + getTimeslot();
-        }
-
-        return 0;
-    }
-
-    /**
-     * Returns an array of length 1 containing this channel's logical slot number
-     */
-    public int[] getLSNArray()
-    {
-        int[] logicalSlotNumbers = new int[1];
-        logicalSlotNumbers[0] = getLogicalSlotNumber();
-        return logicalSlotNumbers;
     }
 
     /**
@@ -121,6 +104,13 @@ public abstract class DMRChannel extends IntegerIdentifier implements IChannelDe
         return true;
     }
 
+
+    @Override
+    public String toString()
+    {
+        return "CHAN:" + getChannelNumber() + ":" + getTimeslot();
+    }
+
     /**
      * Not implemented
      */
@@ -137,5 +127,73 @@ public abstract class DMRChannel extends IntegerIdentifier implements IChannelDe
     public void setFrequencyBand(IFrequencyBand bandIdentifier)
     {
         throw new IllegalArgumentException("This method is not supported");
+    }
+
+    @Override
+    public long getDownlinkFrequency()
+    {
+        if(mTimeslotFrequency != null)
+        {
+            return mTimeslotFrequency.getDownlinkFrequency();
+        }
+
+        return 0;
+    }
+
+    @Override
+    public long getUplinkFrequency()
+    {
+        if(mTimeslotFrequency != null)
+        {
+            return mTimeslotFrequency.getUplinkFrequency();
+        }
+
+        return 0;
+    }
+
+    /**
+     * Sets the lsn to frequency mapper value.
+     * @param timeslotFrequency to set
+     */
+    public void setTimeslotFrequency(TimeslotFrequency timeslotFrequency)
+    {
+        mTimeslotFrequency = timeslotFrequency;
+    }
+
+    @Override
+    public void apply(List<TimeslotFrequency> timeslotFrequencies)
+    {
+        for(TimeslotFrequency timeslotFrequency: timeslotFrequencies)
+        {
+            if(timeslotFrequency.getChannelNumber() == getChannelNumber())
+            {
+                setTimeslotFrequency(timeslotFrequency);
+                return;
+            }
+        }
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if(this == o)
+        {
+            return true;
+        }
+        if(!(o instanceof DMRChannel that))
+        {
+            return false;
+        }
+        if(!super.equals(o))
+        {
+            return false;
+        }
+        return getTimeslot() == that.getTimeslot();
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(super.hashCode(), getTimeslot());
     }
 }

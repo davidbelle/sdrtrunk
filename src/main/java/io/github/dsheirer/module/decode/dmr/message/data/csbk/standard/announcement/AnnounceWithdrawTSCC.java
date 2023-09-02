@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- *  Copyright (C) 2014-2020 Dennis Sheirer
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@ import io.github.dsheirer.module.decode.dmr.message.data.SlotType;
 import io.github.dsheirer.module.decode.dmr.message.data.mbc.MBCContinuationBlock;
 import io.github.dsheirer.module.decode.dmr.message.type.AbsoluteChannelParameters;
 import io.github.dsheirer.module.decode.dmr.message.type.DataType;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -87,8 +86,8 @@ public class AnnounceWithdrawTSCC extends Announcement
 
         if(multiBlock != null)
         {
-            //Control channel timeslot hard-coded to 0
-            mAbsoluteChannelParameters = new AbsoluteChannelParameters(multiBlock.getMessage(), 0, 0);
+            //Control channel timeslot hard-coded to 1
+            mAbsoluteChannelParameters = new AbsoluteChannelParameters(multiBlock.getMessage(), 0, 1);
         }
     }
 

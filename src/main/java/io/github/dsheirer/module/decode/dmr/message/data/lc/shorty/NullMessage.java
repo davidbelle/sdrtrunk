@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- *  Copyright (C) 2014-2020 Dennis Sheirer
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@ package io.github.dsheirer.module.decode.dmr.message.data.lc.shorty;
 
 import io.github.dsheirer.bits.CorrectedBinaryMessage;
 import io.github.dsheirer.identifier.Identifier;
-
 import java.util.Collections;
 import java.util.List;
 
@@ -48,8 +47,7 @@ public class NullMessage extends ShortLCMessage
         {
             sb.append("[CRC ERROR] ");
         }
-        sb.append("SLC IDLE/NULL MESSAGE");
-        sb.append(" MSG:").append(getMessage().toHexString());
+        sb.append("SLC TS1:IDLE TS2:IDLE");
         return sb.toString();
     }
 

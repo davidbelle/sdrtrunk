@@ -1,16 +1,35 @@
+/*
+ * *****************************************************************************
+ * Copyright (C) 2014-2023 Dennis Sheirer
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ * ****************************************************************************
+ */
+
 package io.github.dsheirer.module.decode.dmr.channel;
 
 /**
- * DMR Tier III Trunking Channel
+ * DMR Tier III Trunking channel. This channel uses a logical channel number and a timeslot.
  */
-public class DMRTier3Channel extends DMRLogicalChannel
+public class DMRTier3Channel extends DMRChannel
 {
     /**
      * Constructs an instance.  Note: radio reference uses a one based index, so we add a value of one to the
      * calculated logical slot value for visual compatibility for users.
      *
      * @param channel number or repeater number
-     * @param timeslot
+     * @param timeslot either 1 or 2.
      */
     public DMRTier3Channel(int channel, int timeslot)
     {
@@ -18,23 +37,22 @@ public class DMRTier3Channel extends DMRLogicalChannel
     }
 
     /**
-     * Logical slot number for this channel.
-     *
-     * Formula: LSN = (channel * 2) + timeslot
-     *
-     * @return logical slot number, a 1-based index value
+     * Tier III Channel ID
+     * @return channel ID
      */
-    @Override
-    public int getLogicalSlotNumber()
+    public int getChannelId()
     {
-        int repeater = getRepeater();
-
-        if(repeater > 0)
-        {
-            return ((repeater) * 2) + getTimeslot();
-        }
-
-        return 0;
+        return getChannelNumber() * 2 + getTimeslot();
     }
 
+    /**
+     * Formatted channel number
+     */
+    public String toString()
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.append(" LCN:").append(getChannelNumber());
+        sb.append(" CHANID:").append(getChannelId());
+        return sb.toString();
+    }
 }

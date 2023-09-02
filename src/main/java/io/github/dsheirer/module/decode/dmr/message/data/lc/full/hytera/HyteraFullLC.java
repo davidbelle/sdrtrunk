@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- *  Copyright (C) 2014-2020 Dennis Sheirer
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,13 +22,14 @@ package io.github.dsheirer.module.decode.dmr.message.data.lc.full.hytera;
 import io.github.dsheirer.bits.CorrectedBinaryMessage;
 import io.github.dsheirer.identifier.radio.RadioIdentifier;
 import io.github.dsheirer.module.decode.dmr.identifier.DMRRadio;
+import io.github.dsheirer.module.decode.dmr.message.IServiceOptionsProvider;
 import io.github.dsheirer.module.decode.dmr.message.data.lc.full.FullLCMessage;
 import io.github.dsheirer.module.decode.dmr.message.type.ServiceOptions;
 
 /**
  * Hytera Full Link Control
  */
-public abstract class HyteraFullLC extends FullLCMessage
+public abstract class HyteraFullLC extends FullLCMessage implements IServiceOptionsProvider
 {
     private static final int[] SERVICE_OPTIONS = new int[]{16, 17, 18, 19, 20, 21, 22, 23};
     private static final int[] FREE_REPEATER = new int[]{24, 25, 26, 27};
@@ -36,11 +37,12 @@ public abstract class HyteraFullLC extends FullLCMessage
     protected static final int[] TARGET_ADDRESS = new int[]{32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47};
     private static final int[] PRIORITY_CALL_HASHED_ADDRESS = new int[]{48, 49, 50, 51, 52, 53, 54, 55};
     private static final int[] SOURCE_ADDRESS = new int[]{56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71};
-    private static final int[] UNKNOWN_1 = new int[]{72, 73, 74, 75};
-    private static final int[] UNKNOWN_2 = new int[]{76, 77, 78, 79};
+    //FEC: 72-96
+    //TODO: Target and Source address fields may be full 24-bit values.  How do we distinguish between Hytera repeater
+    //TODO: and a Hytera XPT repeater?  Do the service options identify when it's XPT?
 
     private ServiceOptions mServiceOptions;
-    private RadioIdentifier mSourceRadio;
+    protected RadioIdentifier mSourceRadio;
 
     /**
      * Constructs an instance.
@@ -107,24 +109,6 @@ public abstract class HyteraFullLC extends FullLCMessage
     public String getPriorityCallHashedAddress()
     {
         return String.format("%02X", getMessage().getInt(PRIORITY_CALL_HASHED_ADDRESS)).toUpperCase();
-    }
-
-    /**
-     * Unknown nibble one.  This value remains consistent for the FLC between the Voice Header and the Terminator
-     * for calls.  It does not seem to have correlation to the channel/repeater number
-     */
-    public int getUnknownField1()
-    {
-        return getMessage().getInt(UNKNOWN_1);
-    }
-
-    /**
-     * Unknown nibble two.  For each talkgroup, this field shows one value for the Voice Header and the same value but
-     * bit-inverted in the Terminator.
-     */
-    public int getUnknownField2()
-    {
-        return getMessage().getInt(UNKNOWN_2);
     }
 
     /**

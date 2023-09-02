@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- *  Copyright (C) 2014-2020 Dennis Sheirer
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,9 +24,9 @@ import java.util.List;
 public interface ITimeslotFrequencyReceiver
 {
     /**
-     * Provides the logical slot number(s) that require a matching timeslot frequency mapping
+     * Provides the logical channel number(s) that require a matching timeslot frequency mapping
      */
-    public int[] getLogicalTimeslotNumbers();
+    public int[] getLogicalChannelNumbers();
 
     /**
      * Applies the list of timeslot frequency mappings to the implementer
