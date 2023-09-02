@@ -1,23 +1,20 @@
 /*
+ * *****************************************************************************
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
- *  * ******************************************************************************
- *  * Copyright (C) 2014-2019 Dennis Sheirer
- *  *
- *  * This program is free software: you can redistribute it and/or modify
- *  * it under the terms of the GNU General Public License as published by
- *  * the Free Software Foundation, either version 3 of the License, or
- *  * (at your option) any later version.
- *  *
- *  * This program is distributed in the hope that it will be useful,
- *  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  * GNU General Public License for more details.
- *  *
- *  * You should have received a copy of the GNU General Public License
- *  * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *  * *****************************************************************************
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ * ****************************************************************************
  */
 package io.github.dsheirer.module.decode.fleetsync2;
 
@@ -33,13 +30,16 @@ import io.github.dsheirer.module.decode.event.PlottableDecodeEvent;
 import io.github.dsheirer.module.decode.fleetsync2.identifier.FleetsyncIdentifier;
 import io.github.dsheirer.module.decode.fleetsync2.message.Fleetsync2Message;
 import io.github.dsheirer.protocol.Protocol;
-
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class Fleetsync2DecoderState extends DecoderState
 {
-    private Set<FleetsyncIdentifier> mIdents = new TreeSet<>();
+    private Map<FleetsyncIdentifier,Integer> mFromIdentCountsMap = new HashMap<>();
+    private Map<FleetsyncIdentifier,Integer> mToIdentCountsMap = new HashMap<>();
 
     public Fleetsync2DecoderState()
     {
@@ -50,16 +50,6 @@ public class Fleetsync2DecoderState extends DecoderState
     public DecoderType getDecoderType()
     {
         return DecoderType.FLEETSYNC2;
-    }
-
-    /**
-     * Resets the overall decoder state and clears any accumulated event details
-     */
-    @Override
-    public void reset()
-    {
-        super.reset();
-        mIdents.clear();
     }
 
     @Override
@@ -87,21 +77,37 @@ public class Fleetsync2DecoderState extends DecoderState
 
             getIdentifierCollection().update(fleetsync.getIdentifiers());
 
-            mIdents.add(fleetsync.getFromIdentifier());
-            mIdents.add(fleetsync.getToIdentifier());
+            FleetsyncIdentifier from = fleetsync.getFromIdentifier();
+
+            if(mFromIdentCountsMap.containsKey(from))
+            {
+                mFromIdentCountsMap.put(from, mFromIdentCountsMap.get(from) + 1);
+            }
+            else
+            {
+                mFromIdentCountsMap.put(from, 1);
+            }
+
+            FleetsyncIdentifier to = fleetsync.getToIdentifier();
+
+            if(to != null)
+            {
+                if(mToIdentCountsMap.containsKey(to))
+                {
+                    mToIdentCountsMap.put(to, mToIdentCountsMap.get(to) + 1);
+                }
+                else
+                {
+                    mToIdentCountsMap.put(to, 1);
+                }
+            }
 
             switch(fleetsync.getMessageType())
             {
                 case ANI:
                 case EMERGENCY:
                 case LONE_WORKER_EMERGENCY:
-                    DecodeEvent aniEvent = DecodeEvent.builder(fleetsync.getTimestamp())
-                        .channel(getCurrentChannel())
-                        .eventDescription(fleetsync.getMessageType().toString())
-                        .details(fleetsync.toString())
-                        .identifiers(getIdentifierCollection().copyOf())
-                        .build();
-
+                    DecodeEvent aniEvent = getDecodeEvent(fleetsync, getDecodeEventType(fleetsync.getMessageType()));
                     broadcast(aniEvent);
                     broadcast(new DecoderStateEvent(this, DecoderStateEvent.Event.DECODE, State.CALL));
                     break;
@@ -109,19 +115,13 @@ public class Fleetsync2DecoderState extends DecoderState
                 case PAGING:
                 case STATUS:
                 case UNKNOWN:
-                    DecodeEvent statusEvent = DecodeEvent.builder(fleetsync.getTimestamp())
-                        .channel(getCurrentChannel())
-                        .eventDescription(fleetsync.getMessageType().toString())
-                        .details(fleetsync.toString())
-                        .identifiers(getIdentifierCollection().copyOf())
-                        .build();
+                    DecodeEvent statusEvent = getDecodeEvent(fleetsync, getDecodeEventType(fleetsync.getMessageType()));
                     broadcast(statusEvent);
                     broadcast(new DecoderStateEvent(this, DecoderStateEvent.Event.DECODE, State.DATA));
                     break;
                 case GPS:
-                    PlottableDecodeEvent plottableDecodeEvent = PlottableDecodeEvent.plottableBuilder(fleetsync.getTimestamp())
+                    PlottableDecodeEvent plottableDecodeEvent = PlottableDecodeEvent.plottableBuilder(DecodeEventType.GPS, fleetsync.getTimestamp())
                         .channel(getCurrentChannel())
-                        .eventDescription(DecodeEventType.GPS.toString())
                         .details(fleetsync.toString())
                         .identifiers(getIdentifierCollection().copyOf())
                         .protocol(Protocol.FLEETSYNC)
@@ -132,6 +132,35 @@ public class Fleetsync2DecoderState extends DecoderState
             }
 
             getIdentifierCollection().remove(IdentifierClass.USER);
+        }
+    }
+
+    private DecodeEvent getDecodeEvent(Fleetsync2Message fleetsync, DecodeEventType eventType) {
+        return DecodeEvent.builder(eventType, fleetsync.getTimestamp())
+                .channel(getCurrentChannel())
+                .details(fleetsync.getMessageType() + " " + fleetsync)
+                .identifiers(getIdentifierCollection().copyOf())
+                .protocol(Protocol.FLEETSYNC)
+                .build();
+    }
+
+    private DecodeEventType getDecodeEventType(FleetsyncMessageType fleetsyncMessageType) {
+        switch (fleetsyncMessageType) {
+            case ANI:
+                return DecodeEventType.ID_ANI;
+            case EMERGENCY:
+            case LONE_WORKER_EMERGENCY:
+                return DecodeEventType.EMERGENCY;
+            case ACKNOWLEDGE:
+                return DecodeEventType.ACKNOWLEDGE;
+            case PAGING:
+                return DecodeEventType.PAGE;
+            case STATUS:
+                return DecodeEventType.STATUS;
+            case GPS:
+                return DecodeEventType.GPS;
+            default:
+                return DecodeEventType.UNKNOWN;
         }
     }
 
@@ -158,17 +187,30 @@ public class Fleetsync2DecoderState extends DecoderState
 
         sb.append("=============================\n");
         sb.append("Decoder:\tFleetsync II\n\n");
-        sb.append("Fleetsync Idents\n");
 
-        if(mIdents.isEmpty())
+        if(mFromIdentCountsMap.isEmpty() && mToIdentCountsMap.isEmpty())
         {
+            sb.append("Fleetsync Idents\n");
             sb.append("  None\n");
         }
         else
         {
+            sb.append("Fleetsync From Idents\n");
 
-            for (FleetsyncIdentifier mIdent : mIdents) {
-                sb.append("  ").append(mIdent.formatted()).append("\n");
+            List<FleetsyncIdentifier> fromIdents = new ArrayList<>(mFromIdentCountsMap.keySet());
+            Collections.sort(fromIdents);
+            for(FleetsyncIdentifier from: fromIdents)
+            {
+                sb.append("  ").append(from.formatted()).append(" - Count:").append(mFromIdentCountsMap.get(from)).append("\n");
+            }
+
+            sb.append("\nFleetsync To Idents\n");
+
+            List<FleetsyncIdentifier> toIdents = new ArrayList<>(mToIdentCountsMap.keySet());
+            Collections.sort(toIdents);
+            for(FleetsyncIdentifier to: toIdents)
+            {
+                sb.append("  ").append(to.formatted()).append(" - Count:").append(mToIdentCountsMap.get(to)).append("\n");
             }
         }
 
