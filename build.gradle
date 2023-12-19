@@ -53,7 +53,8 @@ repositories {
     maven { url "https://jitpack.io" }
 }
 
-version = '0.6.0-beta2'
+//Version is defined in gradle.properties so that we can CLI override it for nightly builds.
+version = project.findProperty('projectVersion')
 
 //Java 20 is required for this version of the Project Panama preview/incubator feature
 java {
@@ -210,8 +211,8 @@ def jdk_download_base = "https://download.bell-sw.com/java/20.0.1+10/bellsoft-jd
 def jdk_download_suffix = "-full.tar.gz"
 def jdk_download_linux_aarch64 = jdk_download_base + "linux-aarch64" + jdk_download_suffix
 def jdk_download_linux_x86_64 = jdk_download_base + "linux-amd64" + jdk_download_suffix
-def jdk_download_osx_x86_64 = jdk_download_base + "macos-aarch64" + jdk_download_suffix
-def jdk_download_osx_aarch64 = jdk_download_base + "macos-amd64" + jdk_download_suffix
+def jdk_download_osx_x86_64 = jdk_download_base + "macos-amd64" + jdk_download_suffix
+def jdk_download_osx_aarch64 = jdk_download_base + "macos-aarch64" + jdk_download_suffix
 def jdk_download_windows_x86_64 = jdk_download_base + "windows-amd64-full.zip"
 
 /**
@@ -228,7 +229,8 @@ def configure(org.beryx.runtime.RuntimeZipTask rt, List<String> jvmArgs) {
     //jdk.crypto.ec - needed for HTTPS connections (broadcastify calls & map tile server)
     //jdk.incubator.vector - needed for Project Panama foreign function and vector apis
     //jdk.accessibility is used with assistive technologies like screen readers
-    rt.extension.addModules('jdk.crypto.ec', 'jdk.incubator.vector', 'jdk.accessibility')
+    //java.management for JVM resource monitoring
+    rt.extension.addModules('jdk.crypto.ec', 'jdk.incubator.vector', 'jdk.accessibility', 'java.management')
 
     //Use auto-detected modules and 'add' any specified modules.
     rt.extension.additive.set(true)
@@ -339,7 +341,7 @@ tasks.register('runtimeZipOthers', org.beryx.runtime.RuntimeZipTask) {rt ->
             jdkHome = jdkDownload(jdk_download_osx_aarch64)
         }
     }
-    //Linux x86-64
+    //OSX x86-64
     if(file(jdk_osx_x86_64).exists()) {
         rt.extension.targetPlatform(targetOsxX86_64, jdk_osx_x86_64, [])
     }
@@ -351,5 +353,6 @@ tasks.register('runtimeZipOthers', org.beryx.runtime.RuntimeZipTask) {rt ->
 
     configure(rt, jvmArgsLinux);
 }
-sourceCompatibility = JavaVersion.VERSION_19_PREVIEW
-targetCompatibility = JavaVersion.VERSION_19_PREVIEW
+
+//sourceCompatibility = JavaVersion.VERSION_19_PREVIEW
+//targetCompatibility = JavaVersion.VERSION_19_PREVIEW

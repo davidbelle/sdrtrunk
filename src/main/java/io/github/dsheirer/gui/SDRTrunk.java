@@ -33,17 +33,18 @@ import io.github.dsheirer.controller.channel.ChannelAutoStartFrame;
 import io.github.dsheirer.controller.channel.ChannelException;
 import io.github.dsheirer.controller.channel.ChannelSelectionManager;
 import io.github.dsheirer.eventbus.MyEventBus;
-import io.github.dsheirer.gui.dmr.ViewDmrRecordingViewerRequest;
 import io.github.dsheirer.gui.icon.ViewIconManagerRequest;
 import io.github.dsheirer.gui.playlist.ViewPlaylistRequest;
 import io.github.dsheirer.gui.preference.CalibrateRequest;
 import io.github.dsheirer.gui.preference.PreferenceEditorType;
 import io.github.dsheirer.gui.preference.ViewUserPreferenceEditorRequest;
 import io.github.dsheirer.gui.preference.calibration.CalibrationDialog;
+import io.github.dsheirer.gui.viewer.ViewRecordingViewerRequest;
 import io.github.dsheirer.icon.IconModel;
 import io.github.dsheirer.log.ApplicationLog;
 import io.github.dsheirer.map.MapService;
 import io.github.dsheirer.module.log.EventLogManager;
+import io.github.dsheirer.monitor.ResourceMonitor;
 import io.github.dsheirer.playlist.PlaylistManager;
 import io.github.dsheirer.preference.UserPreferences;
 import io.github.dsheirer.properties.SystemProperties;
@@ -55,7 +56,7 @@ import io.github.dsheirer.source.tuner.TunerEvent;
 import io.github.dsheirer.source.tuner.manager.DiscoveredTuner;
 import io.github.dsheirer.source.tuner.manager.TunerManager;
 import io.github.dsheirer.source.tuner.ui.TunerSpectralDisplayManager;
-import io.github.dsheirer.spectrum.ClearTunerMenuItem;
+import io.github.dsheirer.spectrum.DisableSpectrumWaterfallMenuItem;
 import io.github.dsheirer.spectrum.ShowTunerMenuItem;
 import io.github.dsheirer.spectrum.SpectralDisplayPanel;
 import io.github.dsheirer.util.ThreadPool;
@@ -69,11 +70,11 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.Robot;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -81,7 +82,9 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.prefs.Preferences;
 import javafx.application.Platform;
+import javafx.embed.swing.JFXPanel;
 import javafx.scene.control.ButtonType;
 import jiconfont.icons.font_awesome.FontAwesome;
 import jiconfont.swing.IconFontSwing;
@@ -128,8 +131,11 @@ import javax.swing.BoxLayout;
 public class SDRTrunk implements Listener<TunerEvent>
 {
     private final static Logger mLog = LoggerFactory.getLogger(SDRTrunk.class);
+    private Preferences mPreferences = Preferences.userNodeForPackage(SDRTrunk.class);
 
-    private static final String PROPERTY_BROADCAST_STATUS_VISIBLE = "main.broadcast.status.visible";
+    private static final String PREFERENCE_BROADCAST_STATUS_VISIBLE = "sdrtrunk.broadcast.status.visible";
+    private static final String PREFERENCE_NOW_PLAYING_DETAILS_VISIBLE = "sdrtrunk.now.playing.details.visible";
+    private static final String PREFERENCE_RESOURCE_STATUS_VISIBLE = "sdrtrunk.resource.status.visible";
     private static final String BASE_WINDOW_NAME = "sdrtrunk.main.window";
     private static final String CONTROLLER_PANEL_IDENTIFIER = BASE_WINDOW_NAME + ".control.panel";
     private static final String SPECTRAL_PANEL_IDENTIFIER = BASE_WINDOW_NAME + ".spectral.panel";
@@ -137,6 +143,8 @@ public class SDRTrunk implements Listener<TunerEvent>
     public static boolean lockable = true;
 
     private boolean mBroadcastStatusVisible;
+    private boolean mResourceStatusVisible;
+    private boolean mNowPlayingDetailsVisible;
     private AudioRecordingManager mAudioRecordingManager;
     private AudioStreamingManager mAudioStreamingManager;
     private BroadcastStatusPanel mBroadcastStatusPanel;
@@ -153,6 +161,8 @@ public class SDRTrunk implements Listener<TunerEvent>
     private UserPreferences mUserPreferences = new UserPreferences();
     private TunerManager mTunerManager;
     private ApplicationLog mApplicationLog;
+    private ResourceMonitor mResourceMonitor;
+    private JFXPanel mResourceStatusPanel;
 
     // creating timer task, timer
     private JMenuItem mScreenCaptureItem;
@@ -170,6 +180,8 @@ public class SDRTrunk implements Listener<TunerEvent>
         mApplicationLog = new ApplicationLog(mUserPreferences);
         mApplicationLog.start();
 
+        mResourceMonitor = new ResourceMonitor(mUserPreferences);
+
         String operatingSystem = System.getProperty("os.name", "generic").toLowerCase(Locale.ENGLISH);
 
         if(operatingSystem.contains("mac") || operatingSystem.contains("nux"))
@@ -185,18 +197,10 @@ public class SDRTrunk implements Listener<TunerEvent>
             }
         }
 
-        //Setup the application home directory
-        Path home = getHomePath();
-
         ThreadPool.logSettings();
 
-        mLog.info("Home path: " + home.toString());
-
         //Load properties file
-        if(home != null)
-        {
-            loadProperties(home);
-        }
+        loadProperties();
 
         //Log current properties setting
         SystemProperties.getInstance().logCurrentSettings();
@@ -243,12 +247,14 @@ public class SDRTrunk implements Listener<TunerEvent>
         MapService mapService = new MapService(mIconModel);
         mPlaylistManager.getChannelProcessingManager().addDecodeEventListener(mapService);
 
+        mNowPlayingDetailsVisible = mPreferences.getBoolean(PREFERENCE_NOW_PLAYING_DETAILS_VISIBLE, true);
+
         if(!GraphicsEnvironment.isHeadless())
         {
             mControllerPanel = new ControllerPanel(mPlaylistManager, audioPlaybackManager, mIconModel, mapService,
-                    mSettingsManager, mTunerManager, mUserPreferences);
-
+                    mSettingsManager, mTunerManager, mUserPreferences, mNowPlayingDetailsVisible);
             mPasswordPanel = new PasswordPanel(mMainGui, mPasswordGui);
+
         }
 
         mSpectralPanel = new SpectralDisplayPanel(mPlaylistManager, mSettingsManager, mTunerManager.getDiscoveredTunerModel());
@@ -365,8 +371,10 @@ public class SDRTrunk implements Listener<TunerEvent>
      */
     private void initGUI()
     {
-        mMainGui.setLayout(new MigLayout("insets 0 0 0 0 ", "[grow,fill]", "[grow,fill]"));
-        mPasswordGui.setLayout(new MigLayout("insets 0 0 0 0 ", "[grow,fill]", "[grow,fill]"));
+
+        mMainGui.setLayout(new MigLayout("insets 0 0 0 0 ", "[grow,fill]", "[grow,fill]0[shrink 0]"));
+        mPasswordGui.setLayout(new MigLayout("insets 0 0 0 0 ", "[grow,fill]", "[grow,fill]0[shrink 0]"));
+
 
         /**
          * Setup main JFrame window
@@ -431,7 +439,7 @@ public class SDRTrunk implements Listener<TunerEvent>
         mSplitPane.add(mSpectralPanel);
         mSplitPane.add(mControllerPanel);
 
-        mBroadcastStatusVisible = SystemProperties.getInstance().get(PROPERTY_BROADCAST_STATUS_VISIBLE, false);
+        mBroadcastStatusVisible = mPreferences.getBoolean(PREFERENCE_BROADCAST_STATUS_VISIBLE, false);
 
         //Show broadcast status panel when user requests - disabled by default
         if(mBroadcastStatusVisible)
@@ -441,6 +449,7 @@ public class SDRTrunk implements Listener<TunerEvent>
 
         mMainGui.add(mSplitPane, "cell 0 0,span,grow");
 
+
         Box box = new Box(BoxLayout.Y_AXIS);
         box.add(Box.createVerticalGlue());
         box.add(mPasswordPanel);
@@ -448,6 +457,14 @@ public class SDRTrunk implements Listener<TunerEvent>
 
         mPasswordGui.add(box);
         mPasswordPanel.init();
+
+
+        mResourceMonitor.start();
+        mResourceStatusVisible = mPreferences.getBoolean(PREFERENCE_RESOURCE_STATUS_VISIBLE, true);
+        if(mResourceStatusVisible)
+        {
+            mMainGui.add(getResourceStatusPanel(), "span,growx");
+        }
 
 
         /**
@@ -476,14 +493,9 @@ public class SDRTrunk implements Listener<TunerEvent>
         fileMenu.add(lockMenu);
 
         JMenuItem exitMenu = new JMenuItem("Exit");
-        exitMenu.addActionListener(
-            new ActionListener()
-            {
-                public void actionPerformed(ActionEvent event)
-                {
-                    processShutdown();
-                    System.exit(0);
-                }
+        exitMenu.addActionListener(event -> {
+                processShutdown();
+                System.exit(0);
             }
         );
 
@@ -492,60 +504,127 @@ public class SDRTrunk implements Listener<TunerEvent>
         JMenu viewMenu = new JMenu("View");
 
         JMenuItem viewPlaylistItem = new JMenuItem("Playlist Editor");
+        viewPlaylistItem.setIcon(IconFontSwing.buildIcon(FontAwesome.PLAY_CIRCLE_O, 12));
         viewPlaylistItem.addActionListener(e -> MyEventBus.getGlobalEventBus().post(new ViewPlaylistRequest()));
         viewMenu.add(viewPlaylistItem);
 
         viewMenu.add(new JSeparator());
 
-        JMenuItem dmrMessageViewerMenu = new JMenuItem("DMR Recording Viewer");
-        dmrMessageViewerMenu.addActionListener(e -> MyEventBus.getGlobalEventBus().post(new ViewDmrRecordingViewerRequest()));
-        viewMenu.add(dmrMessageViewerMenu);
-
-        JMenuItem settingsMenu = new JMenuItem("Icon Manager");
-        settingsMenu.addActionListener(arg0 -> MyEventBus.getGlobalEventBus().post(new ViewIconManagerRequest()));
-        viewMenu.add(settingsMenu);
-
-        JMenuItem logFilesMenu = new JMenuItem("Logs & Recordings");
-        logFilesMenu.addActionListener(new ActionListener()
-        {
-            @Override
-            public void actionPerformed(ActionEvent arg0)
+        JMenuItem viewApplicationLogsMenu = new JMenuItem("Application Log Files");
+        viewApplicationLogsMenu.setIcon(IconFontSwing.buildIcon(FontAwesome.FOLDER_OPEN_O, 12));
+        viewApplicationLogsMenu.addActionListener(arg0 -> {
+            File logsDirectory = mUserPreferences.getDirectoryPreference().getDirectoryApplicationLog().toFile();
+            try
             {
-                try
-                {
-                    Desktop.getDesktop().open(getHomePath().toFile());
-                }
-                catch(Exception e)
-                {
-                    mLog.error("Couldn't open file explorer");
+                Desktop.getDesktop().open(logsDirectory);
+            }
+            catch(Exception e)
+            {
+                mLog.error("Couldn't open file explorer");
 
-                    JOptionPane.showMessageDialog(mMainGui,
-                            "Can't launch file explorer - files are located at: " +
-                                    getHomePath().toString(),
-                            "Can't launch file explorer",
-                            JOptionPane.ERROR_MESSAGE);
-                }
+                JOptionPane.showMessageDialog(mMainGui,
+                        "Can't launch file explorer - files are located at: " + logsDirectory,
+                        "Can't launch file explorer",
+                        JOptionPane.ERROR_MESSAGE);
             }
         });
-        viewMenu.add(logFilesMenu);
+        viewMenu.add(viewApplicationLogsMenu);
+
+        JMenuItem viewRecordingsMenuItem = new JMenuItem("Audio Recordings");
+        viewRecordingsMenuItem.setIcon(IconFontSwing.buildIcon(FontAwesome.FOLDER_OPEN_O, 12));
+        viewRecordingsMenuItem.addActionListener(arg0 -> {
+            File recordingsDirectory = mUserPreferences.getDirectoryPreference().getDirectoryRecording().toFile();
+
+            try
+            {
+                Desktop.getDesktop().open(recordingsDirectory);
+            }
+            catch(Exception e)
+            {
+                mLog.error("Couldn't open file explorer");
+
+                JOptionPane.showMessageDialog(mMainGui,
+                        "Can't launch file explorer - files are located at: " +
+                                recordingsDirectory,
+                        "Can't launch file explorer",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        viewMenu.add(viewRecordingsMenuItem);
+
+        JMenuItem viewEventLogsMenu = new JMenuItem("Channel Event Log Files");
+        viewEventLogsMenu.setIcon(IconFontSwing.buildIcon(FontAwesome.FOLDER_OPEN_O, 12));
+        viewEventLogsMenu.addActionListener(arg0 -> {
+            File eventLogsDirectory = mUserPreferences.getDirectoryPreference().getDirectoryEventLog().toFile();
+            try
+            {
+                Desktop.getDesktop().open(eventLogsDirectory);
+            }
+            catch(Exception e)
+            {
+                mLog.error("Couldn't open file explorer");
+
+                JOptionPane.showMessageDialog(mMainGui,
+                        "Can't launch file explorer - files are located at: " + eventLogsDirectory,
+                        "Can't launch file explorer",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        viewMenu.add(viewEventLogsMenu);
+
+        JMenuItem iconManagerMenu = new JMenuItem("Icon Manager");
+        iconManagerMenu.setIcon(IconFontSwing.buildIcon(FontAwesome.PICTURE_O, 12));
+        iconManagerMenu.addActionListener(arg0 -> MyEventBus.getGlobalEventBus().post(new ViewIconManagerRequest()));
+        viewMenu.add(iconManagerMenu);
+
+        JMenuItem recordingViewerMenu = new JMenuItem("Message Recording Viewer (.bits)");
+        recordingViewerMenu.setIcon(IconFontSwing.buildIcon(FontAwesome.BRAILLE, 12));
+        recordingViewerMenu.addActionListener(e -> MyEventBus.getGlobalEventBus().post(new ViewRecordingViewerRequest()));
+        viewMenu.add(recordingViewerMenu);
+
+        JMenuItem viewScreenCapturesMenu = new JMenuItem("Screen Captures");
+        viewScreenCapturesMenu.setIcon(IconFontSwing.buildIcon(FontAwesome.FOLDER_OPEN_O, 12));
+        viewScreenCapturesMenu.addActionListener(arg0 -> {
+            File screenCapturesDirectory = mUserPreferences.getDirectoryPreference().getDirectoryScreenCapture().toFile();
+            try
+            {
+                Desktop.getDesktop().open(screenCapturesDirectory);
+            }
+            catch(Exception e)
+            {
+                mLog.error("Couldn't open file explorer");
+
+                JOptionPane.showMessageDialog(mMainGui,
+                        "Can't launch file explorer - files are located at: " + screenCapturesDirectory,
+                        "Can't launch file explorer",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        viewMenu.add(viewScreenCapturesMenu);
 
         JMenuItem preferencesItem = new JMenuItem("User Preferences");
+        preferencesItem.setIcon(IconFontSwing.buildIcon(FontAwesome.COG, 12));
         preferencesItem.addActionListener(e -> MyEventBus.getGlobalEventBus().post(new ViewUserPreferenceEditorRequest()));
         viewMenu.add(preferencesItem);
 
         viewMenu.add(new JSeparator());
         viewMenu.add(new TunersMenu());
         viewMenu.add(new JSeparator());
-        viewMenu.add(new ClearTunerMenuItem(mSpectralPanel));
-        viewMenu.add(new BroadcastStatusVisibleMenuItem(mControllerPanel));
+        viewMenu.add(new DisableSpectrumWaterfallMenuItem(mSpectralPanel));
+        viewMenu.add(new NowPlayingChannelDetailsVisibleMenuItem());
+        viewMenu.add(new BroadcastStatusVisibleMenuItem());
+        viewMenu.add(new ResourceStatusVisibleMenuItem());
 
         menuBar.add(viewMenu);
 
+
         mScreenCaptureItem = new JMenuItem("Screen Capture");
+        mScreenCaptureItem.setIcon(IconFontSwing.buildIcon(FontAwesome.CAMERA, 12));
         mScreenCaptureItem.setMnemonic(KeyEvent.VK_C);
         mScreenCaptureItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, ActionEvent.ALT_MASK));
         mScreenCaptureItem.setMaximumSize(mScreenCaptureItem.getPreferredSize());
         mScreenCaptureItem.addActionListener(arg0 -> {
+
             try
             {
                 Robot robot = new Robot();
@@ -592,6 +671,7 @@ public class SDRTrunk implements Listener<TunerEvent>
         mLog.info("Stopping channels ...");
         mPlaylistManager.getChannelProcessingManager().shutdown();
         mAudioRecordingManager.stop();
+        mResourceMonitor.stop();
 
         mLog.info("Stopping spectral display ...");
         mSpectralPanel.clearTuner();
@@ -637,7 +717,54 @@ public class SDRTrunk implements Listener<TunerEvent>
             mMainGui.revalidate();
         });
 
-        SystemProperties.getInstance().set(PROPERTY_BROADCAST_STATUS_VISIBLE, mBroadcastStatusVisible);
+        mPreferences.putBoolean(PREFERENCE_BROADCAST_STATUS_VISIBLE, mBroadcastStatusVisible);
+    }
+
+    /**
+     * Lazy constructor for resource status panel
+     */
+    private JFXPanel getResourceStatusPanel()
+    {
+
+        if(mResourceStatusPanel == null)
+        {
+            mResourceStatusPanel = mJavaFxWindowManager.getStatusPanel(mResourceMonitor);
+        }
+
+        return mResourceStatusPanel;
+    }
+
+    /**
+     * Toggles visibility of the resource status panel at the bottom of the main UI window
+     */
+    private void toggleResourceStatusPanelVisibility()
+    {
+        mResourceStatusVisible = !mResourceStatusVisible;
+
+        EventQueue.invokeLater(() -> {
+            if(mResourceStatusVisible)
+            {
+                mMainGui.add(getResourceStatusPanel(), "span,growx");
+            }
+            else
+            {
+                mMainGui.remove(getResourceStatusPanel());
+            }
+
+            mMainGui.revalidate();
+        });
+
+        mPreferences.putBoolean(PREFERENCE_RESOURCE_STATUS_VISIBLE, mResourceStatusVisible);
+    }
+
+    /**
+     * Toggles visibility of the Now Playing channel details panel
+     */
+    private void toggleNowPlayingDetailsPanelVisibility()
+    {
+        mNowPlayingDetailsVisible = !mNowPlayingDetailsVisible;
+        mControllerPanel.getNowPlayingPanel().setDetailTabsVisible(mNowPlayingDetailsVisible);
+        mPreferences.putBoolean(PREFERENCE_NOW_PLAYING_DETAILS_VISIBLE, mNowPlayingDetailsVisible);
     }
 
 
@@ -645,34 +772,30 @@ public class SDRTrunk implements Listener<TunerEvent>
      * Loads the application properties file from the user's home directory,
      * creating the properties file for the first-time, if necessary
      */
-    private void loadProperties(Path homePath)
+    private void loadProperties()
     {
-        Path propsPath = homePath.resolve("SDRTrunk.properties");
+        Path propertiesPath = mUserPreferences.getDirectoryPreference().getDirectoryApplicationRoot().resolve("SDRTrunk.properties");
 
-        if(!Files.exists(propsPath))
+        if(!Files.exists(propertiesPath))
         {
             try
             {
-                mLog.info("SDRTrunk - creating application properties file [" +
-                    propsPath.toAbsolutePath() + "]");
-
-                Files.createFile(propsPath);
+                mLog.info("SDRTrunk - creating application properties file [" + propertiesPath.toAbsolutePath() + "]");
+                Files.createFile(propertiesPath);
             }
             catch(IOException e)
             {
-                mLog.error("SDRTrunk - couldn't create application properties "
-                    + "file [" + propsPath.toAbsolutePath(), e);
+                mLog.error("SDRTrunk - couldn't create application properties file [" + propertiesPath.toAbsolutePath(), e);
             }
         }
 
-        if(Files.exists(propsPath))
+        if(Files.exists(propertiesPath))
         {
-            SystemProperties.getInstance().load(propsPath);
+            SystemProperties.getInstance().load(propertiesPath);
         }
         else
         {
-            mLog.error("SDRTrunk - couldn't find or recreate the SDRTrunk " +
-                "application properties file");
+            mLog.error("SDRTrunk - couldn't find or recreate the SDRTrunk application properties file");
         }
     }
 
@@ -755,26 +878,50 @@ public class SDRTrunk implements Listener<TunerEvent>
         }
     }
 
+    /**
+     * Broadcast status panel visible toggle menu item
+     */
     public class BroadcastStatusVisibleMenuItem extends JCheckBoxMenuItem
     {
-        private ControllerPanel mControllerPanel;
-
-        public BroadcastStatusVisibleMenuItem(ControllerPanel controllerPanel)
+        public BroadcastStatusVisibleMenuItem()
         {
             super("Show Streaming Status");
+            setSelected(mBroadcastStatusVisible);
+            addActionListener(e -> {
+                toggleBroadcastStatusPanelVisibility();
+                setSelected(mBroadcastStatusVisible);
+            });
+        }
+    }
 
-            mControllerPanel = controllerPanel;
+    /**
+     * Resource status panel visible toggle menu item
+     */
+    public class ResourceStatusVisibleMenuItem extends JCheckBoxMenuItem
+    {
+        public ResourceStatusVisibleMenuItem()
+        {
+            super("Show Resource Status");
+            setSelected(mResourceStatusVisible);
+            addActionListener(e -> {
+                toggleResourceStatusPanelVisibility();
+                setSelected(mResourceStatusVisible);
+            });
+        }
+    }
 
-            setSelected(mBroadcastStatusPanel != null);
-
-            addActionListener(new ActionListener()
-            {
-                @Override
-                public void actionPerformed(ActionEvent e)
-                {
-                    toggleBroadcastStatusPanelVisibility();
-                    setSelected(mBroadcastStatusVisible);
-                }
+    /**
+     * Now Playing channel details visible toggle menu item
+     */
+    public class NowPlayingChannelDetailsVisibleMenuItem extends JCheckBoxMenuItem
+    {
+        public NowPlayingChannelDetailsVisibleMenuItem()
+        {
+            super("Show Now Playing Channel Details");
+            setSelected(mNowPlayingDetailsVisible);
+            addActionListener(e -> {
+                toggleNowPlayingDetailsPanelVisibility();
+                setSelected(mNowPlayingDetailsVisible);
             });
         }
     }

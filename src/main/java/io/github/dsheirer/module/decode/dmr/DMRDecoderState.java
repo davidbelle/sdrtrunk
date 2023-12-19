@@ -42,6 +42,7 @@ import io.github.dsheirer.module.decode.dmr.identifier.DMRTalkgroup;
 import io.github.dsheirer.module.decode.dmr.message.DMRMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.DataMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.CSBKMessage;
+import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.HyteraTrafficChannelTalkerStatus;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityMaxAloha;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityPlusNeighbors;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityPlusSiteStatus;
@@ -424,18 +425,19 @@ public class DMRDecoderState extends TimeslotDecoderState
 
             broadcast(packetEvent);
 
-            GeoPosition geoPosition = PacketUtil.extractGeoPosition(packet.getPacket());
+        }
 
-            if (geoPosition != null) {
-                PlottableDecodeEvent plottableDecodeEvent = PlottableDecodeEvent.plottableBuilder(DecodeEventType.GPS, packet.getTimestamp())
-                        .channel(getCurrentChannel())
-                        .identifiers(new IdentifierCollection(packet.getIdentifiers()))
-                        .protocol(Protocol.LRRP)
-                        .location(geoPosition)
-                        .build();
+        GeoPosition geoPosition = PacketUtil.extractGeoPosition(packet.getPacket());
 
-                broadcast(plottableDecodeEvent);
-            }
+        if (geoPosition != null) {
+            PlottableDecodeEvent plottableDecodeEvent = PlottableDecodeEvent.plottableBuilder(DecodeEventType.GPS, packet.getTimestamp())
+                    .channel(getCurrentChannel())
+                    .identifiers(new IdentifierCollection(packet.getIdentifiers()))
+                    .protocol(Protocol.LRRP)
+                    .location(geoPosition)
+                    .build();
+
+            broadcast(plottableDecodeEvent);
         }
     }
 
@@ -444,11 +446,18 @@ public class DMRDecoderState extends TimeslotDecoderState
      */
     private void processVoice(VoiceMessage message)
     {
-        if(message.getSyncPattern().isDirectMode())
+        if(message.getSyncPattern().isMobileSyncPattern())
         {
-            updateCurrentCall(DecodeEventType.CALL, "DIRECT MODE", message.getTimestamp());
+            if(message.getSyncPattern().isDirectMode())
+            {
+                updateCurrentCall(DecodeEventType.CALL, "DIRECT MODE", message.getTimestamp());
+            }
+            else
+            {
+                updateCurrentCall(DecodeEventType.CALL, "REPEATER", message.getTimestamp());
+            }
 
-            //Use the timeslot as the talkgroup identifier since DCDM mode doesn't use talkgroups
+            //Use the timeslot as the talkgroup identifier since DCDM & simple repeater modes don't use talkgroups
             getIdentifierCollection().update(DMRTalkgroup.create(getTimeslot()));
         }
         else
@@ -700,7 +709,22 @@ public class DMRDecoderState extends TimeslotDecoderState
             case HYTERA_08_ANNOUNCEMENT:
             case HYTERA_68_ANNOUNCEMENT:
             case HYTERA_68_XPT_SITE_STATE:
-
+                break;
+            case HYTERA_08_TRAFFIC_CHANNEL_TALKER_STATUS:
+                if(csbk instanceof HyteraTrafficChannelTalkerStatus status)
+                {
+                    if(status.isChannelActive())
+                    {
+                        getIdentifierCollection().update(status.getIdentifiers());
+                        updateCurrentCall(DecodeEventType.CALL_GROUP, "HYTERA TIER 3 CALL", status.getTimestamp());
+                    }
+                    else
+                    {
+                        getIdentifierCollection().remove(Role.FROM);
+                        getIdentifierCollection().update(status.getDestinationRadio());
+                    }
+                }
+                break;
             case MOTOROLA_CAPPLUS_NEIGHBOR_REPORT:
                 if(csbk instanceof CapacityPlusNeighbors)
                 {
@@ -1209,19 +1233,17 @@ public class DMRDecoderState extends TimeslotDecoderState
                 }
                 break;
             case FULL_STANDARD_GPS_INFO:
-                if(message instanceof GPSInformation)
+                if(message instanceof GPSInformation gpsInformation)
                 {
-                    GPSInformation gpsInformation = (GPSInformation)message;
-                    MutableIdentifierCollection ic = new MutableIdentifierCollection(getIdentifierCollection().getIdentifiers());
-                    ic.update(gpsInformation.getGPSLocation());
+                    PlottableDecodeEvent plottableGPS = PlottableDecodeEvent.plottableBuilder(DecodeEventType.GPS, message.getTimestamp())
+                            .channel(getCurrentChannel())
+                            .details("LOCATION:" + gpsInformation.getGPSLocation())
+                            .identifiers(new IdentifierCollection(getIdentifierCollection().getIdentifiers()))
+                            .protocol(Protocol.DMR)
+                            .location(gpsInformation.getPosition())
+                            .build();
 
-                    DecodeEvent gpsEvent = DMRDecodeEvent.builder(DecodeEventType.GPS, message.getTimestamp())
-                        .identifiers(ic)
-                        .timeslot(getTimeslot())
-                        .details("LOCATION:" + gpsInformation.getGPSLocation())
-                        .build();
-
-                    broadcast(gpsEvent);
+                    broadcast(plottableGPS);
                 }
                 break;
             case FULL_STANDARD_TALKER_ALIAS_COMPLETE:

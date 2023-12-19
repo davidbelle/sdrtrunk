@@ -96,8 +96,14 @@ public enum LinkControlOpcode
     MOTOROLA_PATCH_GROUP_VOICE_CHANNEL_UPDATE("PATCH GROUP VOICE CHANNEL UPDATE", 1),
     MOTOROLA_PATCH_GROUP_ADD("PATCH GROUP ADD", 3),
     MOTOROLA_PATCH_GROUP_DELETE("PATCH GROUP DELETE", 4),
+    MOTOROLA_UNIT_GPS("UNIT GPS", 6),
     MOTOROLA_TALK_COMPLETE("TALK_COMPLETE", 15),
-    MOTOROLA_UNKNOWN("UNKNOWN", -1),
+    MOTOROLA_UNKNOWN("MOTOROLA UNKNOWN", -1),
+
+    L3HARRIS_UNKNOWN_0A("UNKNOWN OPCODE 10", 10),
+    L3HARRIS_UNKNOWN_2A("UNKNOWN OPCODE 42", 42),
+    L3HARRIS_UNKNOWN_2B("UNKNOWN OPCODE 43", 43),
+    L3HARRIS_UNKNOWN("L3HARRIS UNKNOWN", -1),
 
     UNKNOWN("UNKNOWN", -1);
 
@@ -129,6 +135,11 @@ public enum LinkControlOpcode
     public static final EnumSet<LinkControlOpcode> MOTOROLA_OPCODES =
             EnumSet.range(MOTOROLA_PATCH_GROUP_VOICE_CHANNEL_USER, MOTOROLA_UNKNOWN);
 
+    /**
+     * L3Harris Opcodes
+     */
+    public static final EnumSet<LinkControlOpcode> L3HARRIS_OPCODES = EnumSet.of(L3HARRIS_UNKNOWN_0A,
+            L3HARRIS_UNKNOWN_2A, L3HARRIS_UNKNOWN_2B, L3HARRIS_UNKNOWN);
 
     /**
      * Network/channel related opcodes
@@ -190,6 +201,18 @@ public enum LinkControlOpcode
                     return values()[value];
                 }
                 break;
+            case HARRIS:
+                switch(value)
+                {
+                    case 10:
+                        return L3HARRIS_UNKNOWN_0A;
+                    case 42:
+                        return L3HARRIS_UNKNOWN_2A;
+                    case 43:
+                        return L3HARRIS_UNKNOWN_2B;
+                    default:
+                        return L3HARRIS_UNKNOWN;
+                }
             case MOTOROLA:
                 switch(value)
                 {
@@ -201,16 +224,18 @@ public enum LinkControlOpcode
                         return MOTOROLA_PATCH_GROUP_ADD;
                     case 4:
                         return MOTOROLA_PATCH_GROUP_DELETE;
+                    case 6:
+                        return MOTOROLA_UNIT_GPS;
                     case 15:
                         return MOTOROLA_TALK_COMPLETE;
                     default:
                         return MOTOROLA_UNKNOWN;
                 }
-            default:
-                if(0 <= value && value <= 63)
-                {
-                    return values()[value];
-                }
+        }
+
+        if(0 <= value && value <= 63)
+        {
+            return values()[value];
         }
 
         return UNKNOWN;

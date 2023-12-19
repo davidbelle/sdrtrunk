@@ -17,17 +17,14 @@
  * ****************************************************************************
  */
 
-package io.github.dsheirer.gui.dmr;
-
-import io.github.dsheirer.gui.JavaFxWindowRequest;
+package io.github.dsheirer.gui.playlist.channel;
 
 /**
- * Request to show the DMR recording viewer
+ * Interface for a processor that implements a filtering mechanism and can be commanded by an external controller to
+ * temporarily clear a filter and then restore the filter.
  */
-public class ViewDmrRecordingViewerRequest extends JavaFxWindowRequest
+public interface IFilterProcessor
 {
-    /**
-     * Constructs an instance
-     */
-    public ViewDmrRecordingViewerRequest() {}
+    void clearFilter();
+    void restoreFilter();
 }

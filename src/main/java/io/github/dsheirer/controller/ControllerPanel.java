@@ -70,15 +70,23 @@ public class ControllerPanel extends JPanel
 
     public ControllerPanel(PlaylistManager playlistManager, AudioPlaybackManager audioPlaybackManager,
                            IconModel iconModel, MapService mapService, SettingsManager settingsManager,
-                           TunerManager tunerManager, UserPreferences userPreferences)
+                           TunerManager tunerManager, UserPreferences userPreferences, boolean detailTabsVisible)
     {
         mAudioPanel = new AudioPanel(iconModel, userPreferences, settingsManager, audioPlaybackManager,
             playlistManager.getAliasModel());
-        mNowPlayingPanel = new NowPlayingPanel(playlistManager, iconModel, userPreferences, settingsManager);
+        mNowPlayingPanel = new NowPlayingPanel(playlistManager, iconModel, userPreferences, settingsManager, detailTabsVisible);
         mMapPanel = new MapPanel(mapService, playlistManager.getAliasModel(), iconModel, settingsManager);
         mTunerManagerPanel = new TunerViewPanel(tunerManager, userPreferences);
 
         init();
+    }
+
+    /**
+     * Now playing panel.
+     */
+    public NowPlayingPanel getNowPlayingPanel()
+    {
+        return mNowPlayingPanel;
     }
 
     private void init()
@@ -108,8 +116,8 @@ public class ControllerPanel extends JPanel
         mTabbedPane.addTab("Map", mMapPanel);
         mTabbedPane.addTab("Tuners", mTunerManagerPanel);
 
-        Icon gearIcon = IconFontSwing.buildIcon(FontAwesome.COG, 20, Color.DARK_GRAY);
-        mTabbedPane.addTab("Playlist Editor", gearIcon, new JLabel("Show Playlist Manager"));
+        Icon playIcon = IconFontSwing.buildIcon(FontAwesome.PLAY_CIRCLE_O, 20, Color.DARK_GRAY);
+        mTabbedPane.addTab("Playlist Editor", playIcon, new JLabel("Show Playlist Manager"));
         mSettingsTabIndex = mTabbedPane.getTabCount() - 1;
 
         //Set preferred size to influence the split between these panels

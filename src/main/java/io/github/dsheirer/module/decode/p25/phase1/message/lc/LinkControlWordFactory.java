@@ -1,7 +1,6 @@
 /*
- * ******************************************************************************
- * sdrtrunk
- * Copyright (C) 2014-2019 Dennis Sheirer
+ * *****************************************************************************
+ * Copyright (C) 2014-2023 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,17 +14,21 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
- * *****************************************************************************
+ * ****************************************************************************
  */
 
 package io.github.dsheirer.module.decode.p25.phase1.message.lc;
 
 import io.github.dsheirer.bits.BinaryMessage;
+import io.github.dsheirer.module.decode.p25.phase1.message.lc.l3harris.LCHarrisUnknownOpcode10;
+import io.github.dsheirer.module.decode.p25.phase1.message.lc.l3harris.LCHarrisUnknownOpcode42;
+import io.github.dsheirer.module.decode.p25.phase1.message.lc.l3harris.LCHarrisUnknownOpcode43;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaPatchGroupAdd;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaPatchGroupDelete;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaPatchGroupVoiceChannelUpdate;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaPatchGroupVoiceChannelUser;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaTalkComplete;
+import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaUnitGPS;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaUnknownOpcode;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.standard.LCAdjacentSiteStatusBroadcast;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.standard.LCAdjacentSiteStatusBroadcastExplicit;
@@ -128,6 +131,15 @@ public class LinkControlWordFactory
             case UNIT_TO_UNIT_VOICE_CHANNEL_USER:
                 return new LCUnitToUnitVoiceChannelUser(binaryMessage);
 
+            case L3HARRIS_UNKNOWN_0A:
+                return new LCHarrisUnknownOpcode10(binaryMessage);
+            case L3HARRIS_UNKNOWN_2A:
+                return new LCHarrisUnknownOpcode42(binaryMessage);
+            case L3HARRIS_UNKNOWN_2B:
+                return new LCHarrisUnknownOpcode43(binaryMessage);
+            case L3HARRIS_UNKNOWN:
+                return new UnknownLinkControlWord(binaryMessage);
+
             case MOTOROLA_PATCH_GROUP_ADD:
                 return new LCMotorolaPatchGroupAdd(binaryMessage);
             case MOTOROLA_PATCH_GROUP_DELETE:
@@ -138,6 +150,8 @@ public class LinkControlWordFactory
                 return new LCMotorolaTalkComplete(binaryMessage);
             case MOTOROLA_PATCH_GROUP_VOICE_CHANNEL_UPDATE:
                 return new LCMotorolaPatchGroupVoiceChannelUpdate(binaryMessage);
+            case MOTOROLA_UNIT_GPS:
+                return new LCMotorolaUnitGPS(binaryMessage);
             case MOTOROLA_UNKNOWN:
                 return new LCMotorolaUnknownOpcode(binaryMessage);
 

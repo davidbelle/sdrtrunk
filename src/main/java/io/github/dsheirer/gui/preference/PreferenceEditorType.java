@@ -31,7 +31,7 @@ public enum PreferenceEditorType
     AUDIO_MP3("MP3"),
     AUDIO_RECORD("Record"),
     AUDIO_OUTPUT("Output/Tones"),
-    AUDIO_DUPLICATE_CALL_DETECTION("Duplicate Calls"),
+    AUDIO_CALL_MANAGEMENT("Call Management"),
     SOURCE_TUNERS("Tuners"),
     TALKGROUP_FORMAT("Talkgroup & Radio ID"),
     VECTOR_CALIBRATION("Vector Calibration"),
