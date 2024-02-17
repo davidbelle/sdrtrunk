@@ -356,3 +356,5 @@ tasks.register('runtimeZipOthers', org.beryx.runtime.RuntimeZipTask) {rt ->
 
 //sourceCompatibility = JavaVersion.VERSION_19_PREVIEW
 //targetCompatibility = JavaVersion.VERSION_19_PREVIEW
+sourceCompatibility = JavaVersion.VERSION_19_PREVIEW
+targetCompatibility = JavaVersion.VERSION_19_PREVIEW
