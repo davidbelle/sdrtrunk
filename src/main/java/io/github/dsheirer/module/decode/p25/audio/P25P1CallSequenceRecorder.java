@@ -20,18 +20,11 @@
 package io.github.dsheirer.module.decode.p25.audio;
 
 
-import io.github.dsheirer.alias.Alias;
-import io.github.dsheirer.alias.AliasList;
 import io.github.dsheirer.audio.codec.mbe.MBECallSequence;
 import io.github.dsheirer.audio.codec.mbe.MBECallSequenceRecorder;
 import io.github.dsheirer.bits.BinaryMessage;
-<<<<<<< HEAD
 import io.github.dsheirer.identifier.Identifier;
-import io.github.dsheirer.identifier.patch.PatchGroup;
-import io.github.dsheirer.identifier.talkgroup.TalkgroupIdentifier;
-=======
 import io.github.dsheirer.identifier.encryption.EncryptionKeyIdentifier;
->>>>>>> 142dd9d579e850bb623a088f8dffc3ad62c23f8e
 import io.github.dsheirer.message.IMessage;
 import io.github.dsheirer.module.decode.p25.phase1.message.P25P1Message;
 import io.github.dsheirer.module.decode.p25.phase1.message.hdu.HDUMessage;
@@ -49,22 +42,16 @@ import io.github.dsheirer.module.decode.p25.phase1.message.ldu.LDU2Message;
 import io.github.dsheirer.module.decode.p25.phase1.message.ldu.LDUMessage;
 import io.github.dsheirer.module.decode.p25.phase1.message.tdu.TDULinkControlMessage;
 import io.github.dsheirer.module.decode.p25.phase1.message.tdu.TDUMessage;
-import io.github.dsheirer.module.decode.p25.phase1.message.tsbk.TSBKMessage;
+
 import io.github.dsheirer.preference.UserPreferences;
-import io.github.dsheirer.preference.identifier.talkgroup.APCO25TalkgroupFormatter;
 import io.github.dsheirer.sample.Listener;
 import io.github.dsheirer.source.ISourceEventListener;
 import io.github.dsheirer.source.SourceEvent;
 
 import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.html.HTMLDirectoryElement;
-
-
-import java.util.ArrayList;
-import java.util.List;
-
 
 /**
  * P25 Phase 1 IMBE Frame recorder generates P25 call sequence recordings containing JSON representations of audio
