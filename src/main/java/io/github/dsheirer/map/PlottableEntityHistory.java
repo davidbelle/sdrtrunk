@@ -31,7 +31,8 @@ import org.jdesktop.swingx.mapviewer.GeoPosition;
  */
 public class PlottableEntityHistory
 {
-    private List<GeoPosition> mLocationHistory = new ArrayList<>();
+    public static final int MAX_LOCATION_HISTORY = 10;
+    private List<TimestampedGeoPosition> mLocationHistory = new ArrayList<>();
     private PlottableDecodeEvent mCurrentEvent;
     private Identifier mIdentifier;
 
@@ -47,9 +48,22 @@ public class PlottableEntityHistory
     /**
      * Location history for this entity
      */
-    public List<GeoPosition> getLocationHistory()
+    public List<TimestampedGeoPosition> getLocationHistory()
     {
         return new ArrayList<>(mLocationHistory);
+    }
+
+    /**
+     * Latest position for this entity.
+     */
+    public TimestampedGeoPosition getLatestPosition()
+    {
+        if(mLocationHistory.size() > 0)
+        {
+            return mLocationHistory.get(0);
+        }
+
+        return null;
     }
 
     /**
@@ -73,7 +87,42 @@ public class PlottableEntityHistory
      */
     public void add(PlottableDecodeEvent event)
     {
-        mCurrentEvent = event;
-        mLocationHistory.add(event.getLocation());
+        TimestampedGeoPosition mostRecentPosition = getLatestPosition();
+        TimestampedGeoPosition latest = new TimestampedGeoPosition(event.getLocation(), event.getTimeStart());
+
+        if(isUnique(latest, mostRecentPosition))
+        {
+            mCurrentEvent = event;
+            mLocationHistory.add(0, latest);
+
+            while(mLocationHistory.size() > MAX_LOCATION_HISTORY)
+            {
+                mLocationHistory.remove(mLocationHistory.size() - 1);
+            }
+        }
+    }
+
+    /**
+     * Indicates if the latest time and position is at least 30 seconds newer than the previous position and either the
+     * latitude or longitude differs by at least 0.00001 degrees.
+     * @param latest location
+     * @param previous location
+     * @return indication of uniqueness.
+     */
+    private boolean isUnique(TimestampedGeoPosition latest, TimestampedGeoPosition previous)
+    {
+        if(latest != null && previous == null)
+        {
+            return true;
+        }
+
+        if(latest != null && previous != null)
+        {
+            return latest.getTimestamp() > (previous.getTimestamp() + 30_000) ||
+                   Math.abs(latest.getLatitude() - previous.getLatitude()) > 0.00001 ||
+                   Math.abs(latest.getLongitude() - previous.getLongitude()) > 0.00001;
+        }
+
+        return false;
     }
 }

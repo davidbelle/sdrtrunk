@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2023 Dennis Sheirer
+ * Copyright (C) 2014-2024 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,17 +25,20 @@ import io.github.dsheirer.alias.AliasList;
 import io.github.dsheirer.audio.codec.mbe.MBECallSequence;
 import io.github.dsheirer.audio.codec.mbe.MBECallSequenceRecorder;
 import io.github.dsheirer.bits.BinaryMessage;
+<<<<<<< HEAD
 import io.github.dsheirer.identifier.Identifier;
 import io.github.dsheirer.identifier.patch.PatchGroup;
 import io.github.dsheirer.identifier.talkgroup.TalkgroupIdentifier;
+=======
+import io.github.dsheirer.identifier.encryption.EncryptionKeyIdentifier;
+>>>>>>> 142dd9d579e850bb623a088f8dffc3ad62c23f8e
 import io.github.dsheirer.message.IMessage;
-import io.github.dsheirer.module.decode.p25.phase1.message.P25Message;
+import io.github.dsheirer.module.decode.p25.phase1.message.P25P1Message;
 import io.github.dsheirer.module.decode.p25.phase1.message.hdu.HDUMessage;
 import io.github.dsheirer.module.decode.p25.phase1.message.hdu.HeaderData;
-import io.github.dsheirer.identifier.encryption.EncryptionKeyIdentifier;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.LinkControlWord;
-import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaPatchGroupVoiceChannelUpdate;
-import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaPatchGroupVoiceChannelUser;
+import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaGroupRegroupVoiceChannelUpdate;
+import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaGroupRegroupVoiceChannelUser;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.standard.LCGroupVoiceChannelUpdateExplicit;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.standard.LCGroupVoiceChannelUser;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.standard.LCTelephoneInterconnectVoiceChannelUser;
@@ -103,9 +106,9 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
     @Override
     public void receive(IMessage message)
     {
-        if(message instanceof P25Message)
+        if(message instanceof P25P1Message)
         {
-            P25Message p25 = (P25Message)message;
+            P25P1Message p25 = (P25P1Message)message;
 
             if(p25.isValid())
             {
@@ -134,7 +137,7 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
     /**
      * Processes any P25 Phase 1 message
      */
-    public void process(P25Message message)
+    public void process(P25P1Message message)
     {
         if(message instanceof LDUMessage)
         {
@@ -230,20 +233,15 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
                     mCallSequence.setToIdentifier(tivcu.getAddress().toString());
                     mCallSequence.setCallType(CALL_TYPE_TELEPHONE_INTERCONNECT);
                     break;
-                case MOTOROLA_PATCH_GROUP_ADD:
-                    mCallSequence.setToIdentifier(getPatchedTalkgroups(lcw));
-                    break;
-                case MOTOROLA_PATCH_GROUP_VOICE_CHANNEL_USER:
-                    LCMotorolaPatchGroupVoiceChannelUser mpgvcu = (LCMotorolaPatchGroupVoiceChannelUser)lcw;
+                case MOTOROLA_GROUP_REGROUP_VOICE_CHANNEL_USER:
+                    LCMotorolaGroupRegroupVoiceChannelUser mpgvcu = (LCMotorolaGroupRegroupVoiceChannelUser)lcw;
                     mCallSequence.setFromIdentifier(mpgvcu.getSourceAddress().toString());
-                    // mCallSequence.setToIdentifierPatch(mpgvcu.getGroupAddress().toString());
-                    mCallSequence.setToIdentifier(mpgvcu.getGroupAddress().toString());
+                    mCallSequence.setToIdentifier(mpgvcu.getSupergroupAddress().toString());
                     mCallSequence.setCallType(CALL_TYPE_GROUP);
                     break;
-                case MOTOROLA_PATCH_GROUP_VOICE_CHANNEL_UPDATE:
-                    LCMotorolaPatchGroupVoiceChannelUpdate mpgvcup = (LCMotorolaPatchGroupVoiceChannelUpdate)lcw;
-                    // mCallSequence.setToIdentifierPatch(mpgvcup.getPatchGroup().toString());
-                    mCallSequence.setToIdentifier(mpgvcup.getPatchGroup().toString());
+                case MOTOROLA_GROUP_REGROUP_VOICE_CHANNEL_UPDATE:
+                    LCMotorolaGroupRegroupVoiceChannelUpdate mpgvcup = (LCMotorolaGroupRegroupVoiceChannelUpdate)lcw;
+                    mCallSequence.setToIdentifier(mpgvcup.getSupergroupAddress().toString());
                     mCallSequence.setCallType(CALL_TYPE_GROUP);
                     break;
                 case CALL_TERMINATION_OR_CANCELLATION:

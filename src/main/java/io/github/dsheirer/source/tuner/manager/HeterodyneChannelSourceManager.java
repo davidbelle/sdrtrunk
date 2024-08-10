@@ -120,7 +120,7 @@ public class HeterodyneChannelSourceManager extends ChannelSourceManager
 
         try
         {
-            mTunerController.getFrequencyControllerLock().lock();
+            mTunerController.getLock().lock();
             if(CenterFrequencyCalculator.canTune(tunerChannel, mTunerController, mTunerChannels))
             {
                 try
@@ -156,7 +156,7 @@ public class HeterodyneChannelSourceManager extends ChannelSourceManager
         }
         finally
         {
-            mTunerController.getFrequencyControllerLock().unlock();
+            mTunerController.getLock().unlock();
         }
 
         return source;
