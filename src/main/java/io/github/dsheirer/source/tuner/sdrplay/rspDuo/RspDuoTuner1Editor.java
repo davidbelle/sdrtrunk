@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2023 Dennis Sheirer
+ * Copyright (C) 2014-2024 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -94,16 +94,12 @@ public class RspDuoTuner1Editor extends RspTunerEditor<RspDuoTuner1Configuration
         add(new JLabel("Sample Rate:"));
         add(getSampleRateCombo(), "wrap");
 
-        add(new JLabel("IF AGC Mode:"));
-        JPanel gainPanel = new JPanel();
-        gainPanel.setLayout(new MigLayout("insets 0","[grow,fill][]",""));
-        gainPanel.add(getAgcButton());
-        gainPanel.add(getGainOverloadButton());
-        add(gainPanel, "wrap");
-
         add(new JLabel("Gain:"));
-        add(getGainSlider());
-        add(getGainValueLabel());
+        add(getGainPanel(), "wrap");
+        add(new JLabel("LNA:"));
+        add(getLNASlider(), "wrap");
+        add(new JLabel("IF:"));
+        add(getIfGainSlider(), "wrap");
 
         add(new JSeparator(), "span,growx,push");
 
@@ -170,13 +166,18 @@ public class RspDuoTuner1Editor extends RspTunerEditor<RspDuoTuner1Configuration
         {
             AgcMode current = getTunerController().getControlRsp().getAgcMode();
             getAgcButton().setSelected(current == null || current.equals(AgcMode.ENABLE));
+            getAgcButton().setText((current == null || current.equals(AgcMode.ENABLE)) ? AUTOMATIC : MANUAL);
+            getLNASlider().setLNA(getTunerController().getControlRsp().getLNA());
+            getIfGainSlider().setGR(getTunerController().getControlRsp().getBasebandGainReduction());
+
             //Register to receive gain overload notifications
             getTunerController().getControlRsp().setGainOverloadListener(this);
+            updateGainLabel();
         }
 
-        getGainSlider().setEnabled(hasTuner());
+        getLNASlider().setEnabled(hasTuner());
+        getIfGainSlider().setEnabled(hasTuner() && getTunerController().getControlRsp().getAgcMode() != AgcMode.ENABLE);
         getGainValueLabel().setEnabled(hasTuner());
-        getGainSlider().setValue(hasTuner() ? getTunerController().getControlRsp().getGain() : 0);
 
         getAmPortCombo().setEnabled(hasTuner() && !getTuner().getTunerController().isLockedSampleRate());
         try
@@ -238,6 +239,8 @@ public class RspDuoTuner1Editor extends RspTunerEditor<RspDuoTuner1Configuration
         if(hasConfiguration() && !isLoading())
         {
             getConfiguration().setFrequency(getFrequencyControl().getFrequency());
+            getConfiguration().setMinimumFrequency(getMinimumFrequencyTextField().getFrequency());
+            getConfiguration().setMaximumFrequency(getMaximumFrequencyTextField().getFrequency());
             double value = ((SpinnerNumberModel) getFrequencyCorrectionSpinner().getModel()).getNumber().doubleValue();
             getConfiguration().setFrequencyCorrection(value);
             getConfiguration().setAutoPPMCorrectionEnabled(getAutoPPMCheckBox().isSelected());
@@ -247,7 +250,8 @@ public class RspDuoTuner1Editor extends RspTunerEditor<RspDuoTuner1Configuration
             getConfiguration().setExternalReferenceOutput(getExternalReferenceOutputCheckBox().isSelected());
             getConfiguration().setRfDabNotch(getRfDabNotchCheckBox().isSelected());
             getConfiguration().setRfNotch(getRfNotchCheckBox().isSelected());
-            getConfiguration().setGain(getGainSlider().getValue());
+            getConfiguration().setLNA(getLNASlider().getLNA());
+            getConfiguration().setBasebandGainReduction(getIfGainSlider().getGR());
             getConfiguration().setAgcMode(getAgcButton().isSelected() ? AgcMode.ENABLE : AgcMode.DISABLE);
 
             saveConfiguration();
@@ -294,6 +298,8 @@ public class RspDuoTuner1Editor extends RspTunerEditor<RspDuoTuner1Configuration
                     try
                     {
                         getTunerController().setSampleRate(selected);
+                        //Adjust the min/max values for the sample rate.
+                        adjustForSampleRate((int)selected.getSampleRate());
                         save();
                     }
                     catch(SDRPlayException se)

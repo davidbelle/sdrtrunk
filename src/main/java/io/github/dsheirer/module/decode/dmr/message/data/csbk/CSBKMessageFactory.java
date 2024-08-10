@@ -34,6 +34,8 @@ import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.HyteraTraff
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.HyteraXPTPreamble;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.hytera.HyteraXPTSiteState;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityMaxAloha;
+import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityMaxOpenModeVoiceChannelUpdate;
+import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityMaxAdvantageModeVoiceChannelUpdate;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityPlusCSBKO_60;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityPlusDataRevertWindowAnnouncement;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.motorola.CapacityPlusDataRevertWindowGrant;
@@ -277,7 +279,12 @@ public class CSBKMessageFactory
                 case MOTOROLA_CAPPLUS_DATA_WINDOW_GRANT:
                     csbk = new CapacityPlusDataRevertWindowGrant(pattern, message, cach, slotType, timestamp, timeslot);
                     break;
-
+                case MOTOROLA_CAPMAX_CHANNEL_UPDATE_OPEN_MODE:
+                    csbk = new CapacityMaxOpenModeVoiceChannelUpdate(pattern, message, cach, slotType, timestamp, timeslot);
+                    break;
+                case MOTOROLA_CAPMAX_CHANNEL_UPDATE_ADVANTAGE_MODE:
+                    csbk = new CapacityMaxAdvantageModeVoiceChannelUpdate(pattern, message, cach, slotType, timestamp, timeslot);
+                    break;
                 case MOTOROLA_CONPLUS_CSBKO_10:
                     csbk = new ConnectPlusOTAAnnouncement(pattern, message, cach, slotType, timestamp, timeslot);
                     break;

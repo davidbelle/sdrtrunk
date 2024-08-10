@@ -31,6 +31,8 @@ import io.github.dsheirer.identifier.talkgroup.TalkgroupIdentifier;
 import io.github.dsheirer.message.IMessage;
 import io.github.dsheirer.module.decode.p25.phase1.message.P25Message;
 import io.github.dsheirer.module.decode.p25.phase1.message.hdu.HDUMessage;
+import io.github.dsheirer.module.decode.p25.phase1.message.hdu.HeaderData;
+import io.github.dsheirer.identifier.encryption.EncryptionKeyIdentifier;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.LinkControlWord;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaPatchGroupVoiceChannelUpdate;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaPatchGroupVoiceChannelUser;
@@ -145,6 +147,10 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
         else if(message instanceof TDUMessage)
         {
             process((TDUMessage) message);
+        }
+        else if (message instanceof HDUMessage)
+        {
+            process((HDUMessage)message);
         }
     }
 
@@ -305,7 +311,6 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
         }
     }
 
-
     @Override
     public Listener<SourceEvent> getSourceEventListener() {
 
@@ -319,5 +324,22 @@ public class P25P1CallSequenceRecorder extends MBECallSequenceRecorder implement
                 }
             }
         };
+    }
+
+    private void process(HDUMessage hduMessage)
+    {
+        if(mCallSequence == null)
+        {
+            mCallSequence = new MBECallSequence(PROTOCOL);
+        }
+
+        HeaderData hd = hduMessage.getHeaderData();
+
+        if (hd.isEncryptedAudio())
+        {
+            mCallSequence.setEncrypted(true);
+            Phase2EncryptionSyncParameters esp = new Phase2EncryptionSyncParameters((EncryptionKeyIdentifier)hd.getEncryptionKey(), hd.getMessageIndicator());
+            mCallSequence.setEncryptionSyncParameters(esp);
+        }
     }
 }

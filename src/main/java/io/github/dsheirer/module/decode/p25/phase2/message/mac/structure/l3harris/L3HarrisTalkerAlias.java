@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2023 Dennis Sheirer
+ * Copyright (C) 2014-2024 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -78,9 +78,21 @@ public class L3HarrisTalkerAlias extends MacStructure
     {
         if(mAliasIdentifier == null)
         {
-            int length = getLength() * 8;
-            String alias = new String(getMessage().getSubMessage(ALIAS_START + getOffset(), length + getOffset()).getBytes()).trim();
-            mAliasIdentifier = P25TalkerAliasIdentifier.create(alias);
+            int length = getLength();
+
+            if(length > 0)
+            {
+                length *= 8;
+                length += getOffset();
+
+                if(length > getMessage().size())
+                {
+                    length = getMessage().size();
+                }
+
+                String alias = new String(getMessage().getSubMessage(ALIAS_START + getOffset(), length).getBytes()).trim();
+                mAliasIdentifier = P25TalkerAliasIdentifier.create(alias);
+            }
         }
 
         return mAliasIdentifier;

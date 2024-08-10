@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- *  Copyright (C) 2014-2020 Dennis Sheirer
+ * Copyright (C) 2014-2024 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,20 +19,18 @@
 
 package io.github.dsheirer.gui.control;
 
-import io.github.dsheirer.gui.playlist.alias.AliasItemEditor;
+import java.util.function.UnaryOperator;
 import javafx.scene.control.TextFormatter;
 import javafx.util.converter.IntegerStringConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.function.UnaryOperator;
 
 /**
  * Text formatter for integer values that constrains values to specified minimum and maximum valid values.
  */
 public class IntegerFormatter extends TextFormatter<Integer>
 {
-    private static final Logger mLog = LoggerFactory.getLogger(AliasItemEditor.class);
+    private static final Logger mLog = LoggerFactory.getLogger(IntegerFormatter.class);
 
     /**
      * Constructs an instance

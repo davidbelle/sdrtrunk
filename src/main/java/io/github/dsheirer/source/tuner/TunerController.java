@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2023 Dennis Sheirer
+ * Copyright (C) 2014-2024 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -72,6 +72,17 @@ public abstract class TunerController implements Tunable, ISourceEventProcessor,
         mFrequencyController = new FrequencyController(this);
         mSourceEventListener = new SourceEventListenerToProcessorAdapter(this);
         mFrequencyErrorCorrectionManager = new FrequencyErrorCorrectionManager(this);
+    }
+
+    /**
+     * Updates the frequency controller with the new minimum and maximum values.
+     * @param minimum frequency Hertz
+     * @param maximum frequency Hertz
+     */
+    public void setFrequencyExtents(long minimum, long maximum)
+    {
+        mFrequencyController.setMinimumFrequency(minimum);
+        mFrequencyController.setMaximumFrequency(maximum);
     }
 
     /**
@@ -175,7 +186,31 @@ public abstract class TunerController implements Tunable, ISourceEventProcessor,
      */
     public void apply(TunerConfiguration config) throws SourceException
     {
-        setFrequency(config.getFrequency());
+        //Set the frequency from the config.  If the config frequency generates an error, try setting the default
+        //frequency before we give up on the tuner as having an error.
+        try
+        {
+            setFrequency(config.getFrequency());
+        }
+        catch(Exception e)
+        {
+            mLog.warn("Unable to restore previous frequency [" + config.getFrequency() + "] trying default frequency");
+            if(config.getFrequency() != TunerConfiguration.DEFAULT_FREQUENCY)
+            {
+                setFrequency(TunerConfiguration.DEFAULT_FREQUENCY);
+                //If we're successful to here, update the config with the default frequency.
+                config.setFrequency(TunerConfiguration.DEFAULT_FREQUENCY);
+            }
+        }
+
+        if(config.getMinimumFrequency() > 0)
+        {
+            setMinimumFrequency(config.getMinimumFrequency());
+        }
+        if(config.getMaximumFrequency() > 0)
+        {
+            setMaximumFrequency(config.getMaximumFrequency());
+        }
         setFrequencyCorrection(config.getFrequencyCorrection());
         getFrequencyErrorCorrectionManager().setEnabled(config.getAutoPPMCorrectionEnabled());
     }
@@ -273,19 +308,7 @@ public abstract class TunerController implements Tunable, ISourceEventProcessor,
      */
     public long getFrequency()
     {
-        long frequency;
-
-        try
-        {
-            getFrequencyControllerLock().lock();
-            frequency = mFrequencyController.getFrequency();
-        }
-        finally
-        {
-            getFrequencyControllerLock().unlock();
-        }
-
-        return frequency;
+        return mFrequencyController.getFrequency();
     }
 
     @Override
@@ -657,45 +680,6 @@ public abstract class TunerController implements Tunable, ISourceEventProcessor,
     public void receive(INativeBuffer nativeBuffer)
     {
         broadcast(nativeBuffer);
-    }
-
-    /**
-     * Indicates if the current center frequency and bandwidth is correct to source the tuner channel
-     *
-     * @param tunerChannel to test
-     * @return true if the current center frequency and bandwidth is correct for the channel
-     */
-    public boolean isTunedFor(TunerChannel tunerChannel)
-    {
-        try
-        {
-            if(tunerChannel.getMinFrequency() < getMinTunedFrequency())
-            {
-                return false;
-            }
-
-            if(tunerChannel.getMaxFrequency() > getMaxTunedFrequency())
-            {
-                return false;
-            }
-
-            if(hasMiddleUnusableBandwidth())
-            {
-                long minAvoid = getFrequency() - getMiddleUnusableHalfBandwidth();
-                long maxAvoid = getFrequency() + getMiddleUnusableHalfBandwidth();
-
-                if(tunerChannel.overlaps(minAvoid, maxAvoid))
-                {
-                    return false;
-                }
-            }
-        }
-        catch(SourceException se)
-        {
-            return false;
-        }
-
-        return true;
     }
 
     /**

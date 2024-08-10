@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2023 Dennis Sheirer
+ * Copyright (C) 2014-2024 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,14 +50,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.commons.math3.util.FastMath;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.JPanel;
 
 public class OverlayPanel extends JPanel implements Listener<ChannelEvent>, ISourceEventProcessor, SettingChangeListener
 {
     private static final long serialVersionUID = 1L;
-
-//    private final static Logger mLog = LoggerFactory.getLogger(OverlayPanel.class);
+    private final static Logger mLog = LoggerFactory.getLogger(OverlayPanel.class);
     private final DecimalFormat PPM_FORMATTER = new DecimalFormat( "#.0" );
 
     private final static RenderingHints RENDERING_HINTS = new RenderingHints(RenderingHints.KEY_ANTIALIASING,
@@ -533,77 +534,73 @@ public class OverlayPanel extends JPanel implements Listener<ChannelEvent>, ISou
     {
         for(Channel channel : mVisibleChannels)
         {
-            if(mChannelDisplay == ChannelDisplay.ALL ||
-                (mChannelDisplay == ChannelDisplay.ENABLED && channel.isProcessing()))
+            if(mChannelDisplay == ChannelDisplay.ALL || (mChannelDisplay == ChannelDisplay.ENABLED && channel.isProcessing()))
             {
-                //Choose the correct background color to use
-                if(channel.isSelected())
+                List<TunerChannel> tunerChannels = channel.getTunerChannels();
+
+                for(TunerChannel tunerChannel: tunerChannels)
                 {
-                    graphics.setColor(mColorChannelConfigSelected);
-                }
-                else if(channel.isProcessing())
-                {
-                    graphics.setColor(mColorChannelConfigProcessing);
-                }
-                else
-                {
-                    graphics.setColor(mColorChannelConfig);
-                }
-
-                TunerChannel tunerChannel = channel.getTunerChannel();
-
-                if(tunerChannel != null)
-                {
-                    double xAxis = getAxisFromFrequency(tunerChannel.getFrequency());
-
-                    double width = (double)(tunerChannel.getBandwidth()) / (double)getDisplayBandwidth() * getSize().getWidth();
-
-                    Rectangle2D.Double box =
-                        new Rectangle2D.Double(xAxis - (width / 2.0d), 0.0d, width, getSize().getHeight() - mSpectrumInset);
-
-                    //Fill the box with the correct color
-                    graphics.fill(box);
-
-                    graphics.draw(box);
-
-                    //Change to the line color to render the channel name, etc.
-                    graphics.setColor(mColorSpectrumLine);
-
-                    //Draw the labels starting at yAxis position 0
-                    double yAxis = 0;
-
-                    //Draw the system label and adjust the y-axis position
-                    String system = channel.hasSystem() ? channel.getSystem() : " ";
-
-                    yAxis += drawLabel(graphics, system, this.getFont(), xAxis, yAxis, width);
-
-                    //Draw the site label and adjust the y-axis position
-                    String site = channel.hasSite() ? channel.getSite() : " ";
-
-                    yAxis += drawLabel(graphics, site, this.getFont(), xAxis, yAxis, width);
-
-                    //Draw the channel label and adjust the y-axis position
-                    yAxis += drawLabel(graphics, channel.getName(), this.getFont(), xAxis, yAxis, width);
-
-                    //Draw the decoder label
-                    drawLabel(graphics, channel.getDecodeConfiguration().getDecoderType().getShortDisplayString(),
-                        this.getFont(), xAxis, yAxis, width);
-
-                    long frequency = tunerChannel.getFrequency();
-
-                    double frequencyAxis = getAxisFromFrequency(frequency);
-
-                    drawChannelCenterLine(graphics, frequencyAxis);
-                    
-                    /* Draw Automatic Frequency Control line */
-                    int correction = channel.getChannelFrequencyCorrection();
-
-                    if(correction != 0)
+                    if(tunerChannel.overlaps(getMinDisplayFrequency(), getMaxDisplayFrequency()))
                     {
-                        long error = frequency + correction;
+                        //Choose the correct background color to use
+                        if(channel.isSelected())
+                        {
+                            graphics.setColor(mColorChannelConfigSelected);
+                        }
+                        else if(channel.isProcessing())
+                        {
+                            graphics.setColor(mColorChannelConfigProcessing);
+                        }
+                        else
+                        {
+                            graphics.setColor(mColorChannelConfig);
+                        }
 
-                        drawAFC(graphics, frequencyAxis, getAxisFromFrequency(error), width, correction,
-                            tunerChannel.getFrequency());
+                        double xAxis = getAxisFromFrequency(tunerChannel.getFrequency());
+                        double width = (double)(tunerChannel.getBandwidth()) / (double)getDisplayBandwidth() * getSize().getWidth();
+
+                        Rectangle2D.Double box = new Rectangle2D.Double(xAxis - (width / 2.0d), 0.0d, width,
+                                getSize().getHeight() - mSpectrumInset);
+
+                        //Fill the box with the correct color
+                        graphics.fill(box);
+                        graphics.draw(box);
+
+                        //Change to the line color to render the channel name, etc.
+                        graphics.setColor(mColorSpectrumLine);
+
+                        //Draw the labels starting at yAxis position 0
+                        double yAxis = 0;
+
+                        //Draw the system label and adjust the y-axis position
+                        String system = channel.hasSystem() ? channel.getSystem() : " ";
+
+                        yAxis += drawLabel(graphics, system, this.getFont(), xAxis, yAxis, width);
+
+                        //Draw the site label and adjust the y-axis position
+                        String site = channel.hasSite() ? channel.getSite() : " ";
+
+                        yAxis += drawLabel(graphics, site, this.getFont(), xAxis, yAxis, width);
+
+                        //Draw the channel label and adjust the y-axis position
+                        yAxis += drawLabel(graphics, channel.getName(), this.getFont(), xAxis, yAxis, width);
+
+                        //Draw the decoder label
+                        drawLabel(graphics, channel.getDecodeConfiguration().getDecoderType().getShortDisplayString(),
+                                this.getFont(), xAxis, yAxis, width);
+                        long frequency = tunerChannel.getFrequency();
+                        double frequencyAxis = getAxisFromFrequency(frequency);
+                        drawChannelCenterLine(graphics, frequencyAxis);
+
+                        /* Draw Automatic Frequency Control line */
+                        int correction = channel.getChannelFrequencyCorrection();
+
+                        if(correction != 0)
+                        {
+                            long error = frequency + correction;
+                            drawAFC(graphics, frequencyAxis, getAxisFromFrequency(error), width, correction,
+                                    tunerChannel.getFrequency());
+                        }
                     }
                 }
             }
@@ -796,11 +793,14 @@ public class OverlayPanel extends JPanel implements Listener<ChannelEvent>, ISou
 
         for(Channel config : mVisibleChannels)
         {
-            TunerChannel channel = config.getTunerChannel();
+            List<TunerChannel> channels = config.getTunerChannels();
 
-            if(channel != null && channel.getMinFrequency() <= frequency && channel.getMaxFrequency() >= frequency)
+            for(TunerChannel channel: channels)
             {
-                configs.add(config);
+                if(channel != null && channel.getMinFrequency() <= frequency && channel.getMaxFrequency() >= frequency)
+                {
+                    configs.add(config);
+                }
             }
         }
 

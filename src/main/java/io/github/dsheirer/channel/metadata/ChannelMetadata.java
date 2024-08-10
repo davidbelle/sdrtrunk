@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2022 Dennis Sheirer
+ * Copyright (C) 2014-2024 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ import io.github.dsheirer.identifier.configuration.SystemConfigurationIdentifier
 import io.github.dsheirer.identifier.decoder.ChannelStateIdentifier;
 import io.github.dsheirer.identifier.decoder.DecoderLogicalChannelNameIdentifier;
 import io.github.dsheirer.sample.Listener;
+
 import io.github.dsheirer.channel.state.State;
 import io.github.dsheirer.source.tuner.TunerIdleEventFile;
 import org.slf4j.Logger;
@@ -43,6 +44,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Channel metadata containing details about the channel configuration, decoder state and current
@@ -69,15 +72,49 @@ public class ChannelMetadata implements Listener<IdentifierUpdateNotification>, 
     private AliasModel mAliasModel;
     private AliasList mAliasList;
 
+    /**
+     * Constructs an instance
+     * @param aliasModel for alias lookups
+     * @param timeslot for this metadata
+     */
     public ChannelMetadata(AliasModel aliasModel, Integer timeslot)
     {
         mAliasModel = aliasModel;
         mTimeslot = timeslot;
     }
 
+    /**
+     * Constructs an instance
+     * @param aliasModel for alias lookups
+     */
     public ChannelMetadata(AliasModel aliasModel)
     {
         this(aliasModel, null);
+    }
+
+    /**
+     * Creates a textual description of this channel metadata.
+     */
+    public String getDescription()
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Channel Metadata Description\n");
+        sb.append("\tTimeslot: ").append(mTimeslot).append("\n");
+        Identifier decoder = getDecoderTypeConfigurationIdentifier();
+        sb.append("\tDecoder: ").append(decoder != null ? decoder : "(null)").append("\n");
+        Identifier state = getChannelStateIdentifier();
+        sb.append("\tState: ").append(state != null ? state : "(null)").append("\n");
+        Identifier system = getSystemConfigurationIdentifier();
+        sb.append("\tSystem: ").append(system != null ? system : "(null)").append("\n");
+        Identifier site = getSiteConfigurationIdentifier();
+        sb.append("\tSite: ").append(site != null ? site : "(null)").append("\n");
+        Identifier channel = getChannelNameConfigurationIdentifier();
+        sb.append("\tChannel: ").append(channel != null ? channel : "(null)").append("\n");
+        Identifier frequency = getFrequencyConfigurationIdentifier();
+        sb.append("\tFrequency: ").append(frequency != null ? frequency : "(null)").append("\n");
+        Identifier logical = getDecoderLogicalChannelNameIdentifier();
+        sb.append("\tLogical Channel: ").append(logical != null ? logical : "(null)").append("\n");
+        return sb.toString();
     }
 
     public Integer getTimeslot()

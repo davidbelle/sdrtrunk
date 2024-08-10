@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2023 Dennis Sheirer
+ * Copyright (C) 2014-2024 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -76,6 +76,7 @@ public class HeterodyneChannelSourceManager extends ChannelSourceManager
                     .append("] Frequency [").append(channelSource.getFrequency())
                     .append("] Mixer [").append(channelSource.getMixerFrequency())
                     .append("]");
+            sb.append(" HASH:").append(Integer.toHexString(channelSource.hashCode()).toUpperCase());
         }
 
         return sb.toString();
@@ -107,7 +108,8 @@ public class HeterodyneChannelSourceManager extends ChannelSourceManager
     }
 
     @Override
-    public TunerChannelSource getSource(TunerChannel tunerChannel, ChannelSpecification channelSpecification)
+    public TunerChannelSource getSource(TunerChannel tunerChannel, ChannelSpecification channelSpecification,
+                                        String threadName)
     {
         if(!mRunning)
         {
@@ -125,7 +127,7 @@ public class HeterodyneChannelSourceManager extends ChannelSourceManager
                 {
                     //Attempt to create the channel source first, in case we get a filter design exception
                     HalfBandTunerChannelSource tunerChannelSource = new HalfBandTunerChannelSource(mChannelSourceEventProcessor,
-                            tunerChannel, mTunerController.getSampleRate(), channelSpecification);
+                            tunerChannel, mTunerController.getSampleRate(), channelSpecification, threadName);
 
                     //Add to the list of channel sources so that it will receive the tuner frequency change
                     mChannelSources.add(tunerChannelSource);
@@ -232,7 +234,6 @@ public class HeterodyneChannelSourceManager extends ChannelSourceManager
      */
     private void broadcastToChannels(SourceEvent sourceEvent)
     {
-//        for(CICTunerChannelSource channelSource : mChannelSources)
         for(HalfBandTunerChannelSource channelSource : mChannelSources)
         {
             try
@@ -253,7 +254,6 @@ public class HeterodyneChannelSourceManager extends ChannelSourceManager
      */
     private void updateTunerFrequency(long tunerFrequency)
     {
-//        for(CICTunerChannelSource channelSource : mChannelSources)
         for(HalfBandTunerChannelSource channelSource : mChannelSources)
         {
             channelSource.setFrequency(tunerFrequency);

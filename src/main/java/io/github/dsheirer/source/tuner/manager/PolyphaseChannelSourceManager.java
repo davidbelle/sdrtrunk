@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2023 Dennis Sheirer
+ * Copyright (C) 2014-2024 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -198,14 +198,13 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
             throw new IllegalArgumentException("Channel set bandwidth is greater than tuner's available bandwidth");
         }
 
-        long bestIntegralFrequency = getIntegralFrequency(channels);
-
-        //Strategy 1: reuse the current frequency if it's a good integral and the channels fit
-        if(isIntegralSpacing(currentCenterFrequency, bestIntegralFrequency) &&
-            isValidCenterFrequency(channels, currentCenterFrequency))
+        //Strategy 1: reuse the current frequency if the channels fit
+        if(isValidCenterFrequency(channels, currentCenterFrequency))
         {
             return currentCenterFrequency;
         }
+
+        long bestIntegralFrequency = getIntegralFrequency(channels);
 
         double usableHalfBandwidth = mTunerController.getUsableHalfBandwidth();
 
@@ -424,10 +423,12 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
      *
      * @param tunerChannel for requested source
      * @param channelSpecification for the requested channel
+     * @param threadName for the dispatcher
      * @return allocated DDC tuner channel source, or null if the channel cannot be provided by this source manager
      */
     @Override
-    public TunerChannelSource getSource(TunerChannel tunerChannel, ChannelSpecification channelSpecification)
+    public TunerChannelSource getSource(TunerChannel tunerChannel, ChannelSpecification channelSpecification,
+                                        String threadName)
     {
         TunerChannelSource tunerChannelSource = null;
 
@@ -458,9 +459,7 @@ public class PolyphaseChannelSourceManager extends ChannelSourceManager
                         }
 
                         //If we're successful to here, allocate the channel
-
-                        tunerChannelSource = mPolyphaseChannelManager.getChannel(tunerChannel, mTunerId);
-
+                        tunerChannelSource = mPolyphaseChannelManager.getChannel(tunerChannel, threadName, mTunerId);
                     }
                     catch(SourceException se)
                     {

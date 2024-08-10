@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2023 Dennis Sheirer
+ * Copyright (C) 2014-2024 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -309,6 +309,10 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
                     broadcast(event);
                     SourceConfigTuner sourceConfig = new SourceConfigTuner();
                     sourceConfig.setFrequency(frequency);
+                    if(mParentChannel.getSourceConfiguration() instanceof  SourceConfigTuner parentConfigTuner)
+                    {
+                        sourceConfig.setPreferredTuner(parentConfigTuner.getPreferredTuner());
+                    }
                     trafficChannel.setSourceConfiguration(sourceConfig);
                     mAllocatedTrafficChannelMap.put(frequency, trafficChannel);
 
@@ -356,6 +360,10 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
 
             SourceConfigTuner sourceConfig = new SourceConfigTuner();
             sourceConfig.setFrequency(frequency);
+            if(mParentChannel.getSourceConfiguration() instanceof  SourceConfigTuner parentConfigTuner)
+            {
+                sourceConfig.setPreferredTuner(parentConfigTuner.getPreferredTuner());
+            }
             trafficChannel.setSourceConfiguration(sourceConfig);
             mAllocatedTrafficChannelMap.put(frequency, trafficChannel);
 
@@ -455,6 +463,10 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
                     broadcast(event);
                     SourceConfigTuner sourceConfig = new SourceConfigTuner();
                     sourceConfig.setFrequency(frequency);
+                    if(mParentChannel.getSourceConfiguration() instanceof  SourceConfigTuner parentConfigTuner)
+                    {
+                        sourceConfig.setPreferredTuner(parentConfigTuner.getPreferredTuner());
+                    }
                     trafficChannel.setSourceConfiguration(sourceConfig);
                     mAllocatedTrafficChannelMap.put(frequency, trafficChannel);
 
@@ -517,6 +529,10 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
 
             SourceConfigTuner sourceConfig = new SourceConfigTuner();
             sourceConfig.setFrequency(frequency);
+            if(mParentChannel.getSourceConfiguration() instanceof  SourceConfigTuner parentConfigTuner)
+            {
+                sourceConfig.setPreferredTuner(parentConfigTuner.getPreferredTuner());
+            }
             trafficChannel.setSourceConfiguration(sourceConfig);
             mAllocatedTrafficChannelMap.put(frequency, trafficChannel);
 
@@ -778,6 +794,12 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
             }
         }
 
+        /**
+         * Process channel events from the ChannelProcessingManager to account for owned child traffic channels.
+         * Note: this method sees events for ALL channels and not just P25 channels managed by this instance.
+         *
+         * @param channelEvent to process
+         */
         @Override
         public synchronized void receive(ChannelEvent channelEvent)
         {

@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2023 Dennis Sheirer
+ * Copyright (C) 2014-2024 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ import io.github.dsheirer.module.decode.dmr.channel.TimeslotFrequency;
 import io.github.dsheirer.module.decode.dmr.identifier.DMRTalkgroup;
 import io.github.dsheirer.module.decode.dmr.message.CACH;
 import io.github.dsheirer.module.decode.dmr.message.DMRBurst;
+import io.github.dsheirer.module.decode.dmr.message.data.DataMessageWithLinkControl;
 import io.github.dsheirer.module.decode.dmr.message.data.IDLEMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.block.DataBlock;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.CSBKMessage;
@@ -66,13 +67,14 @@ public class DMRMessageProcessor implements Listener<IMessage>
     private VoiceSuperFrameProcessor mSuperFrameProcessor2 = new VoiceSuperFrameProcessor();
     private FLCAssembler mFLCAssemblerTimeslot1 = new FLCAssembler(1);
     private FLCAssembler mFLCAssemblerTimeslot2 = new FLCAssembler(2);
-    private MBCAssembler mMBCAssembler = new MBCAssembler();
+    private MBCAssembler mMBCAssembler;
     private PacketSequenceAssembler mPacketSequenceAssembler;
     private SLCAssembler mSLCAssembler = new SLCAssembler();
     private TalkerAliasAssembler mTalkerAliasAssembler = new TalkerAliasAssembler();
     private Listener<IMessage> mMessageListener;
     private Map<Integer,TimeslotFrequency> mTimeslotFrequencyMap = new TreeMap<>();
     private DmrCrcMaskManager mCrcMaskManager = new DmrCrcMaskManager();
+    private boolean mIgnoreCrcChecksums;
 
     /**
      * Constructs an instance
@@ -80,6 +82,8 @@ public class DMRMessageProcessor implements Listener<IMessage>
     public DMRMessageProcessor(DecodeConfigDMR config)
     {
         mConfigDMR = config;
+        mIgnoreCrcChecksums = config.getIgnoreCRCChecksums();
+        mMBCAssembler = new MBCAssembler(mIgnoreCrcChecksums);
 
         for(TimeslotFrequency timeslotFrequency: config.getTimeslotMap())
         {
@@ -87,6 +91,17 @@ public class DMRMessageProcessor implements Listener<IMessage>
         }
 
         mPacketSequenceAssembler = new PacketSequenceAssembler();
+    }
+
+    /**
+     * Indicates if the message is valid or if the Ignore CRC Checksums feature is enabled.
+     *
+     * @param message to check
+     * @return true if ignore CRC checksums or if the message is valid.
+     */
+    private boolean isValid(IMessage message)
+    {
+        return mIgnoreCrcChecksums || message.isValid();
     }
 
     /**
@@ -128,7 +143,7 @@ public class DMRMessageProcessor implements Listener<IMessage>
                 mSuperFrameProcessor2.process(voiceMessage);
             }
         }
-        else if(message instanceof DMRBurst dmrBurst && dmrBurst.isValid())
+        else if(message instanceof DMRBurst dmrBurst && isValid(dmrBurst))
         {
             if(dmrBurst.getTimeslot() == 1)
             {
@@ -140,27 +155,14 @@ public class DMRMessageProcessor implements Listener<IMessage>
             }
         }
 
-        //Enrich messages that carry DMR Logical Channel Numbers with LCN to frequency mappings
-        if(message instanceof ITimeslotFrequencyReceiver)
+        //Process data messages carrying a link control payload so that the LC payload can be processed/enriched
+        if(message instanceof DataMessageWithLinkControl linkControlCarrier)
         {
-            ITimeslotFrequencyReceiver receiver = (ITimeslotFrequencyReceiver)message;
-            int[] lcns = receiver.getLogicalChannelNumbers();
-
-            List<TimeslotFrequency> timeslotFrequencies = new ArrayList<>();
-
-            for(int lcn: lcns)
-            {
-                if(mTimeslotFrequencyMap.containsKey(lcn))
-                {
-                    timeslotFrequencies.add(mTimeslotFrequencyMap.get(lcn));
-                }
-            }
-
-            if(!timeslotFrequencies.isEmpty())
-            {
-                receiver.apply(timeslotFrequencies);
-            }
+            enrich(linkControlCarrier.getLCMessage());
         }
+
+        //Enrich messages that carry DMR Logical Channel Numbers with LCN to frequency mappings
+        enrich(message);
 
         //Now that the message has been (potentially) enriched, dispatch it to the modules
         dispatch(message);
@@ -243,16 +245,44 @@ public class DMRMessageProcessor implements Listener<IMessage>
             }
 
             //Reset talker alias assembler on Idle or Terminator
-            if(message.isValid() && (message instanceof IDLEMessage || message instanceof Terminator))
+            if(isValid(message) && (message instanceof IDLEMessage || message instanceof Terminator))
             {
                 mTalkerAliasAssembler.reset(message.getTimeslot());
             }
         }
 
         //Assemble Talker Alias from FLC message fragments (header & blocks 1-3)
-        if(message instanceof FullLCMessage flc && flc.getOpcode().isTalkerAliasOpcode() && message.isValid())
+        if(message instanceof FullLCMessage flc && flc.getOpcode().isTalkerAliasOpcode() && isValid(message))
         {
             dispatch(mTalkerAliasAssembler.process(flc));
+        }
+    }
+
+    /**
+     * Enrich messages that carry DMR Logical Channel Numbers with LCN to frequency mappings
+     * @param message to be enriched
+     */
+    private void enrich(IMessage message)
+    {
+        if(message instanceof ITimeslotFrequencyReceiver)
+        {
+            ITimeslotFrequencyReceiver receiver = (ITimeslotFrequencyReceiver)message;
+            int[] lcns = receiver.getLogicalChannelNumbers();
+
+            List<TimeslotFrequency> timeslotFrequencies = new ArrayList<>();
+
+            for(int lcn: lcns)
+            {
+                if(mTimeslotFrequencyMap.containsKey(lcn))
+                {
+                    timeslotFrequencies.add(mTimeslotFrequencyMap.get(lcn));
+                }
+            }
+
+            if(!timeslotFrequencies.isEmpty())
+            {
+                receiver.apply(timeslotFrequencies);
+            }
         }
     }
 

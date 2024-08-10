@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2023 Dennis Sheirer
+ * Copyright (C) 2014-2024 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ public class Dispatcher<E> implements Listener<E>
     private final LinkedTransferQueue<E> mQueue = new LinkedTransferQueue<>();
     private Listener<E> mListener;
     private final AtomicBoolean mRunning = new AtomicBoolean();
-    private final String mThreadName;
+    private String mThreadName;
     private ScheduledExecutorService mExecutorService;
     private ScheduledFuture<?> mScheduledFuture;
     private final long mInterval;
@@ -71,6 +71,15 @@ public class Dispatcher<E> implements Listener<E>
     {
         mThreadName = threadName;
         mInterval = interval;
+    }
+
+    /**
+     * Sets the thread name.  If this dispatcher is already started, this has no effect.
+     * @param threadName to use for this dispatcher.
+     */
+    public void setThreadName(String threadName)
+    {
+        mThreadName = threadName;
     }
 
     /**
@@ -106,7 +115,9 @@ public class Dispatcher<E> implements Listener<E>
         {
             if(mScheduledFuture != null)
             {
-                mScheduledFuture.cancel(true);
+                //Note: this has to be false because downstream implementations may have acquired locks and they must
+                //be able to release those locks or we'll get a deadlock situation.
+                mScheduledFuture.cancel(false);
             }
 
             if(mExecutorService != null)
@@ -132,7 +143,9 @@ public class Dispatcher<E> implements Listener<E>
         {
             if(mScheduledFuture != null)
             {
-                mScheduledFuture.cancel(true);
+                //Note: this has to be false because downstream implementations may have acquired locks and they must
+                //be able to release those locks or we'll get a deadlock situation.
+                mScheduledFuture.cancel(false);
                 mScheduledFuture = null;
                 mQueue.clear();
             }
