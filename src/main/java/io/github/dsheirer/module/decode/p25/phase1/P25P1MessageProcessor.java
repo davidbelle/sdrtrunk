@@ -19,15 +19,21 @@
 package io.github.dsheirer.module.decode.p25.phase1;
 
 import io.github.dsheirer.channel.IChannelDescriptor;
+import io.github.dsheirer.message.AbstractMessage;
 import io.github.dsheirer.message.IMessage;
 import io.github.dsheirer.module.decode.p25.P25FrequencyBandPreloadDataContent;
 import io.github.dsheirer.module.decode.p25.phase1.message.IFrequencyBand;
 import io.github.dsheirer.module.decode.p25.phase1.message.IFrequencyBandReceiver;
-import io.github.dsheirer.module.decode.p25.phase1.message.lc.ExtendedSourceLinkControlWord;
+import io.github.dsheirer.module.decode.p25.phase1.message.hdu.HDUMessage;
+import io.github.dsheirer.module.decode.p25.phase1.message.lc.IExtendedSourceMessage;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.LinkControlWord;
+import io.github.dsheirer.module.decode.p25.phase1.message.lc.l3harris.HarrisTalkerAliasAssembler;
+import io.github.dsheirer.module.decode.p25.phase1.message.lc.l3harris.LCHarrisTalkerAliasBase;
+import io.github.dsheirer.module.decode.p25.phase1.message.lc.motorola.LCMotorolaTalkerAliasAssembler;
 import io.github.dsheirer.module.decode.p25.phase1.message.lc.standard.LCSourceIDExtension;
 import io.github.dsheirer.module.decode.p25.phase1.message.ldu.LDU1Message;
-import io.github.dsheirer.module.decode.p25.phase1.message.tdu.TDULinkControlMessage;
+import io.github.dsheirer.module.decode.p25.phase1.message.ldu.LDU2Message;
+import io.github.dsheirer.module.decode.p25.phase1.message.tdu.TDULCMessage;
 import io.github.dsheirer.sample.Listener;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +44,7 @@ import org.slf4j.LoggerFactory;
 /**
  * APCO25 Phase 1 Message Processor.
  *
- * Performs post-message creation processing before the message is sent downstream.
+ * Performs post-message creation processing and enrichment before the message is sent downstream.
  */
 public class P25P1MessageProcessor implements Listener<IMessage>
 {
@@ -56,10 +62,26 @@ public class P25P1MessageProcessor implements Listener<IMessage>
     private Map<Integer,IFrequencyBand> mFrequencyBandMap = new TreeMap<Integer,IFrequencyBand>();
 
     /**
-     * Temporary holding of an extended source link control message while it awaits the extension message to arrive.
+     * Temporary holding for an extended source link control message while it awaits the extension message to arrive.
      */
-    private ExtendedSourceLinkControlWord mExtendedSourceLinkControlWord;
+    private TDULCMessage mHeldTDULCMessage;
+    private HDUMessage mHeldHDUMessage;
+    private LDU1Message mHeldLDU1Message;
+    private LDU2Message mHeldLDU2Message;
 
+    /**
+     * Motorola talker alias assembler for link control header and data blocks.
+     */
+    private LCMotorolaTalkerAliasAssembler mMotorolaTalkerAliasAssembler = new LCMotorolaTalkerAliasAssembler();
+
+    /**
+     * Harris talker alias assembler for link control talker alias blocks
+     */
+    private HarrisTalkerAliasAssembler mHarrisTalkerAliasAssembler = new HarrisTalkerAliasAssembler();
+
+    /**
+     * Constructs an instance
+     */
     public P25P1MessageProcessor()
     {
     }
@@ -79,48 +101,148 @@ public class P25P1MessageProcessor implements Listener<IMessage>
         }
     }
 
+    /**
+     * Processes the message for enrichment or reassembly of fragments and sends the enriched message and any additional
+     * messages that were created during the enrichment to the registered message listener.
+     * @param message to process
+     */
     @Override
     public void receive(IMessage message)
     {
         if(message.isValid())
         {
             //Reassemble extended source link control messages.
-            if(message instanceof LDU1Message ldu)
+            if(message instanceof LDU1Message ldu1)
             {
-                reassembleLC(ldu.getLinkControlWord());
-            }
-            else if(message instanceof TDULinkControlMessage tdu)
-            {
-                reassembleLC(tdu.getLinkControlWord());
-            }
+                LinkControlWord lcw = ldu1.getLinkControlWord();;
 
-            //Insert frequency band identifier update messages into channel-type messages */
-            if(message instanceof IFrequencyBandReceiver)
-            {
-                IFrequencyBandReceiver receiver = (IFrequencyBandReceiver)message;
-
-                List<IChannelDescriptor> channels = receiver.getChannels();
-
-                for(IChannelDescriptor channel : channels)
+                if(lcw instanceof IExtendedSourceMessage esm)
                 {
-                    int[] frequencyBandIdentifiers = channel.getFrequencyBandIdentifiers();
-
-                    for(int id : frequencyBandIdentifiers)
+                    if(lcw instanceof LCSourceIDExtension extension)
                     {
-                        if(mFrequencyBandMap.containsKey(id))
-                        {
-                            channel.setFrequencyBand(mFrequencyBandMap.get(id));
-                        }
+                        processSourceIDExtension(extension);
+                    }
+                    else if(esm.isExtensionRequired())
+                    {
+                        processSourceIDExtension(null);
+                        mHeldLDU1Message = ldu1;
+                        return;
                     }
                 }
-            }
+                else if(lcw instanceof LCHarrisTalkerAliasBase harrisTalkerAlias)
+                {
+                    //Send the LCW to the harris talker alias assembler
+                    dispatch(mHarrisTalkerAliasAssembler.process(harrisTalkerAlias, ldu1.getTimestamp()));
+                }
 
-            //Store band identifiers so that they can be injected into channel type messages
-            if(message instanceof IFrequencyBand)
-            {
-                IFrequencyBand bandIdentifier = (IFrequencyBand)message;
-                mFrequencyBandMap.put(bandIdentifier.getIdentifier(), bandIdentifier);
+                //Flush any held messages
+                processSourceIDExtension(null);
+
+                dispatch(ldu1);
             }
+            else if(message instanceof LDU2Message ldu2)
+            {
+                //If we held onto an LDU1 awaiting a source ID extension, then also hold onto this LDU2 and flush them in sequence.
+                if(mHeldLDU1Message != null)
+                {
+                    mHeldLDU2Message = ldu2;
+                }
+                else
+                {
+                    dispatch(ldu2);
+                }
+            }
+            else if(message instanceof TDULCMessage tdulc)
+            {
+                LinkControlWord lcw = tdulc.getLinkControlWord();
+
+                if(lcw instanceof IExtendedSourceMessage esm)
+                {
+                    if(lcw instanceof LCSourceIDExtension sourceIDExtension)
+                    {
+                        processSourceIDExtension(sourceIDExtension);
+                    }
+                    else if(esm.isExtensionRequired())
+                    {
+                        processSourceIDExtension(null);
+                        mHeldTDULCMessage = tdulc;
+                        return;
+                    }
+                }
+
+                //Motorola carries the talker alias in the TDULC
+                else if(mMotorolaTalkerAliasAssembler.add(lcw, message.getTimestamp()))
+                {
+                    dispatch(mMotorolaTalkerAliasAssembler.assemble());
+                }
+
+                //Harris carries the talker alias in the LDU1 link control messages, so reset the assembler on TDULC.
+                mHarrisTalkerAliasAssembler.reset();
+
+                dispatch(tdulc);
+            }
+            else if(message instanceof HDUMessage hdu && mHeldTDULCMessage != null)
+            {
+                //If the last TDULC message was held because it needs an extension that can arrive in the first LDU1,
+                //hold onto the intermediate HDU message and send everything (TDU, HDU, LDU) in correct sequence.
+                mHeldHDUMessage = hdu;
+            }
+            else
+            {
+                //flush any held messages
+                processSourceIDExtension(null);
+                dispatch(message);
+            }
+        }
+    }
+
+    /**
+     * Processes the source extension message and attaches it to any held TDULC or LDU1 with LC messages and flushes any
+     * held messages.
+     * @param extension to attach to held message(s) or null extension to flush all held messages.
+     */
+    private void processSourceIDExtension(LCSourceIDExtension extension)
+    {
+        if(mHeldTDULCMessage != null && mHeldTDULCMessage.getLinkControlWord() instanceof IExtendedSourceMessage esm)
+        {
+            esm.setSourceIDExtension(extension);
+            dispatch(mHeldTDULCMessage);
+            mHeldTDULCMessage = null;
+            dispatch(mHeldHDUMessage);
+            mHeldHDUMessage = null;
+        }
+
+        if(mHeldLDU1Message != null && mHeldLDU1Message.getLinkControlWord() instanceof IExtendedSourceMessage esm)
+        {
+            esm.setSourceIDExtension(extension);
+            dispatch(mHeldLDU1Message);
+            mHeldLDU1Message = null;
+            dispatch(mHeldLDU2Message);
+            mHeldLDU2Message = null;
+        }
+    }
+
+    /**
+     * Post-process the message for frequency band details.
+     * @param message to post process and dispatch
+     */
+    private void dispatch(IMessage message)
+    {
+        if(message == null)
+        {
+            return;
+        }
+
+        processForFrequencyBands(message);
+
+        //Also process the link control messages for frequency bands.
+        if(message instanceof LDU1Message ldu1)
+        {
+            processForFrequencyBands(ldu1.getLinkControlWord());
+        }
+        else if(message instanceof TDULCMessage tdulc)
+        {
+            processForFrequencyBands(tdulc.getLinkControlWord());
         }
 
         if(mMessageListener != null)
@@ -130,40 +252,80 @@ public class P25P1MessageProcessor implements Listener<IMessage>
     }
 
     /**
-     * Processes link control words to reassemble source ID extension messages.
-     * @param linkControlWord to process
+     * Captures IDEN_UPDATE messages and attaches them to messages with channel descriptors.
+     * @param message to process for frequency band assembly.
      */
-    private void reassembleLC(LinkControlWord linkControlWord)
+    private void processForFrequencyBands(IMessage message)
     {
-        if(linkControlWord instanceof ExtendedSourceLinkControlWord eslcw)
+        if(message instanceof AbstractMessage am)
         {
-            mExtendedSourceLinkControlWord = eslcw;
-        }
-        else if(linkControlWord instanceof LCSourceIDExtension sie && mExtendedSourceLinkControlWord != null)
-        {
-            mExtendedSourceLinkControlWord.setSourceIDExtension(sie);
-            mExtendedSourceLinkControlWord = null;
-        }
-        else
-        {
-            //The source extension message should always immediately follow the message that is being extended, so if
-            //we get a message that is not an extended message or the extension, then we've missed the extension and we
-            //should nullify any extended message that's waiting for the extension.
-            mExtendedSourceLinkControlWord = null;
+            processForFrequencyBands(am);
         }
     }
 
+    /**
+     * Captures IDEN_UPDATE messages and attaches them to messages with channel descriptors.
+     * @param message to process for frequency band assembly.
+     */
+    private void processForFrequencyBands(AbstractMessage message)
+    {
+        //Insert frequency band identifier update messages into channel-type messages */
+        if(message instanceof IFrequencyBandReceiver)
+        {
+            IFrequencyBandReceiver receiver = (IFrequencyBandReceiver)message;
+
+            List<IChannelDescriptor> channels = receiver.getChannels();
+
+            for(IChannelDescriptor channel : channels)
+            {
+                int[] frequencyBandIdentifiers = channel.getFrequencyBandIdentifiers();
+
+                for(int id : frequencyBandIdentifiers)
+                {
+                    if(mFrequencyBandMap.containsKey(id))
+                    {
+                        channel.setFrequencyBand(mFrequencyBandMap.get(id));
+                    }
+                }
+            }
+        }
+
+        //Store band identifiers so that they can be injected into channel type messages
+        if(message instanceof IFrequencyBand)
+        {
+            IFrequencyBand bandIdentifier = (IFrequencyBand)message;
+
+            //Only store the frequency band if it's new so we don't hold on to more than one instance of the
+            //frequency band message.  Otherwise, we'll hold on to several instances of each message as they get
+            //injected into other messages with channel information.
+            if(!mFrequencyBandMap.containsKey(bandIdentifier.getIdentifier()))
+            {
+                mFrequencyBandMap.put(bandIdentifier.getIdentifier(), bandIdentifier);
+            }
+        }
+    }
+
+    /**
+     * Prepares for disposal of this instance.
+     */
     public void dispose()
     {
         mFrequencyBandMap.clear();
         mMessageListener = null;
     }
 
+    /**
+     * Sets the message listener to receive the output from this processor.
+     * @param listener to receive output messages
+     */
     public void setMessageListener(Listener<IMessage> listener)
     {
         mMessageListener = listener;
     }
 
+    /**
+     * Clears a registered message listener.
+     */
     public void removeMessageListener()
     {
         mMessageListener = null;

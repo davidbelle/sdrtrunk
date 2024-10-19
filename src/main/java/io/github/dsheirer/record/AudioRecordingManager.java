@@ -25,7 +25,6 @@ import io.github.dsheirer.identifier.Identifier;
 import io.github.dsheirer.identifier.IdentifierClass;
 import io.github.dsheirer.identifier.IdentifierCollection;
 import io.github.dsheirer.identifier.Role;
-import io.github.dsheirer.identifier.integer.IntegerIdentifier;
 import io.github.dsheirer.identifier.string.StringIdentifier;
 import io.github.dsheirer.identifier.tone.Tone;
 import io.github.dsheirer.identifier.tone.ToneIdentifier;
@@ -141,7 +140,7 @@ public class AudioRecordingManager implements Listener<AudioSegment>
 
         while(audioSegment != null)
         {
-            if(audioSegment.isDuplicate() && mUserPreferences.getDuplicateCallDetectionPreference().isDuplicateRecordingSuppressionEnabled())
+            if(audioSegment.isDuplicate() && mUserPreferences.getCallManagementPreference().isDuplicateRecordingSuppressionEnabled())
             {
                 audioSegment.decrementConsumerCount();
             }
@@ -209,8 +208,7 @@ public class AudioRecordingManager implements Listener<AudioSegment>
 
             if(to != null)
             {
-                String toValue = ((IntegerIdentifier)to).getValue().toString().replace(":", "");
-                sb.append("_TO_").append(toValue);
+                sb.append("_TO_").append(clean(to.toString()));
             }
             else
             {
@@ -218,7 +216,7 @@ public class AudioRecordingManager implements Listener<AudioSegment>
 
                 if(!toIdentifiers.isEmpty())
                 {
-                    sb.append("_TO_").append(toIdentifiers.get(0));
+                    sb.append("_TO_").append(clean(toIdentifiers.get(0).toString()));
                 }
             }
 
@@ -226,8 +224,7 @@ public class AudioRecordingManager implements Listener<AudioSegment>
 
             if(from != null)
             {
-                String fromValue = ((IntegerIdentifier)from).getValue().toString().replace(":", "");
-                sb.append("_FROM_").append(fromValue);
+                sb.append("_FROM_").append(clean(from.toString()));
             }
             else
             {
@@ -239,7 +236,7 @@ public class AudioRecordingManager implements Listener<AudioSegment>
                     {
                         if(identifier.getForm() != Form.TONE)
                         {
-                            sb.append("_FROM_").append(identifier);
+                            sb.append("_FROM_").append(clean(identifier.toString()));
                             break;
                         }
                     }
@@ -341,6 +338,21 @@ public class AudioRecordingManager implements Listener<AudioSegment>
             mAudioSegment.completeProperty().removeListener(this);
             processCompletedAudioSegment(mAudioSegment);
         }
+    }
+
+    public static String clean(String value)
+    {
+        if(value != null)
+        {
+            return value.replace(":", "")
+                    .replace(".", "_")
+                    .replace("(", "_")
+                    .replace(")", "")
+                    .replace("ROAM ", "")
+                    .replace("ISSI ", "");
+        }
+
+        return null;
     }
 
     /**

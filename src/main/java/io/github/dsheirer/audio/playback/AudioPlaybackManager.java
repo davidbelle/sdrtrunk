@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2023 Dennis Sheirer
+ * Copyright (C) 2014-2024 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -124,7 +124,7 @@ public class AudioPlaybackManager implements Listener<AudioSegment>, IAudioContr
         while(newSegment != null)
         {
             if(newSegment.isDuplicate() &&
-               mUserPreferences.getDuplicateCallDetectionPreference().isDuplicatePlaybackSuppressionEnabled())
+               mUserPreferences.getCallManagementPreference().isDuplicatePlaybackSuppressionEnabled())
             {
                 newSegment.decrementConsumerCount();
             }
@@ -152,7 +152,7 @@ public class AudioPlaybackManager implements Listener<AudioSegment>, IAudioContr
                 audioSegment = it.next();
 
                 if(audioSegment.isDuplicate() &&
-                   mUserPreferences.getDuplicateCallDetectionPreference().isDuplicatePlaybackSuppressionEnabled())
+                   mUserPreferences.getCallManagementPreference().isDuplicatePlaybackSuppressionEnabled())
                 {
                     it.remove();
                     audioSegment.decrementConsumerCount();
@@ -186,7 +186,7 @@ public class AudioPlaybackManager implements Listener<AudioSegment>, IAudioContr
                 audioSegment = it.next();
 
                 if(audioSegment.isDoNotMonitor() || (audioSegment.isDuplicate() &&
-                   mUserPreferences.getDuplicateCallDetectionPreference().isDuplicatePlaybackSuppressionEnabled()))
+                   mUserPreferences.getCallManagementPreference().isDuplicatePlaybackSuppressionEnabled()))
                 {
                     it.remove();
                     audioSegment.decrementConsumerCount();
@@ -232,7 +232,7 @@ public class AudioPlaybackManager implements Listener<AudioSegment>, IAudioContr
                 audioSegment = it.next();
 
                 if(audioSegment.completeProperty().get() || (audioSegment.isDuplicate() &&
-                   mUserPreferences.getDuplicateCallDetectionPreference().isDuplicatePlaybackSuppressionEnabled()))
+                   mUserPreferences.getCallManagementPreference().isDuplicatePlaybackSuppressionEnabled()))
                 {
                     it.remove();
                     audioSegment.decrementConsumerCount();

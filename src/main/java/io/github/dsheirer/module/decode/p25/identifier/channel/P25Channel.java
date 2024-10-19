@@ -43,6 +43,22 @@ public class P25Channel implements IChannelDescriptor
     }
 
     /**
+     * Band identifier for this channel.
+     */
+    public int getBandIdentifier()
+    {
+        return mBandIdentifier;
+    }
+
+    /**
+     * Channel number for this channel.
+     */
+    public int getChannelNumber()
+    {
+        return mChannelNumber;
+    }
+
+    /**
      * Frequency band information that backs this channel
      */
     public IFrequencyBand getFrequencyBand()
@@ -118,7 +134,7 @@ public class P25Channel implements IChannelDescriptor
     @Override
     public void setFrequencyBand(IFrequencyBand frequencyBand)
     {
-        if(frequencyBand.getIdentifier() == getDownlinkBandIdentifier())
+        if(frequencyBand != null && frequencyBand.getIdentifier() == getDownlinkBandIdentifier())
         {
             mFrequencyBand = frequencyBand;
         }
