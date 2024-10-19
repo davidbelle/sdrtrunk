@@ -188,7 +188,7 @@ public class P25P2DecoderState extends TimeslotDecoderState implements Identifie
     protected void resetState()
     {
         super.resetState();
-        closeCurrentCallEvent(System.currentTimeMillis(), true, false);
+        closeCurrentCallEvent(true, false);
         mEndPttOnFacchCounter = 0;
     }
 
@@ -1274,7 +1274,7 @@ public class P25P2DecoderState extends TimeslotDecoderState implements Identifie
     {
         if(mac instanceof EndPushToTalk)
         {
-            closeCurrentCallEvent(message.getTimestamp(), true, false);
+            closeCurrentCallEvent(true, false);
 
             if(message.getDataUnitID().isFACCH())
             {
@@ -1561,7 +1561,7 @@ public class P25P2DecoderState extends TimeslotDecoderState implements Identifie
     {
         if(mac instanceof MacRelease mr)
         {
-            closeCurrentCallEvent(message.getTimestamp(), true, false);
+            closeCurrentCallEvent(true, false);
             broadcast(message, mac, DecodeEventType.COMMAND,
                     (mr.isForcedPreemption() ? "FORCED " : "") + "CALL PREEMPTION" +
                             (mr.isTalkerPreemption() ? " BY USER" : " BY CONTROLLER"));
@@ -1882,13 +1882,12 @@ public class P25P2DecoderState extends TimeslotDecoderState implements Identifie
     /**
      * Ends/closes the current call event.
      *
-     * @param timestamp of the message that indicates the event has ended.
      * @param resetIdentifiers to reset the FROM/TO identifiers (true) or reset just the FROM identifiers (false)
      * @param isIdleNull to indicate if the calling trigger is an IDLE/NULL message
      */
-    private void closeCurrentCallEvent(long timestamp, boolean resetIdentifiers, boolean isIdleNull)
+    private void closeCurrentCallEvent(boolean resetIdentifiers, boolean isIdleNull)
     {
-        mTrafficChannelManager.closeP2CallEvent(getCurrentFrequency(), getTimeslot(), timestamp, isIdleNull);
+        mTrafficChannelManager.closeP2CallEvent(getCurrentFrequency(), getTimeslot(), isIdleNull);
 
         if(resetIdentifiers)
         {
@@ -1959,7 +1958,6 @@ public class P25P2DecoderState extends TimeslotDecoderState implements Identifie
     public void start()
     {
         super.start();
-        mPatchGroupManager.clear();
 
         //Change the default (45-second) traffic channel timeout to 1 second
         if(mChannel.isTrafficChannel())
@@ -1971,12 +1969,5 @@ public class P25P2DecoderState extends TimeslotDecoderState implements Identifie
     @Override
     public void init()
     {
-    }
-
-    @Override
-    public void stop()
-    {
-        super.stop();
-        mPatchGroupManager.clear();
     }
 }

@@ -4,7 +4,11 @@
   <component name="FrameworkDetectionExcludesConfiguration">
     <file type="web" url="file://$PROJECT_DIR$" />
   </component>
+<<<<<<< HEAD
   <component name="ProjectRootManager" version="2" languageLevel="JDK_19" project-jdk-name="liberica-full-21" project-jdk-type="JavaSDK">
+=======
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_23_PREVIEW" project-jdk-name="liberica-23" project-jdk-type="JavaSDK">
+>>>>>>> 5d4dff7948a0f72aeb70759d71b440089227c66c
     <output url="file://$PROJECT_DIR$/out" />
   </component>
 </project>

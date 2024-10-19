@@ -40,7 +40,7 @@ public abstract class FullyQualifiedTalkgroupIdentifier extends TalkgroupIdentif
      */
     public FullyQualifiedTalkgroupIdentifier(int localAddress, int wacn, int system, int id, Role role)
     {
-        super(localAddress > 0 ? localAddress : id, role);
+        super(localAddress, role);
         mWacn = wacn;
         mSystem = system;
         mTalkgroup = id;
@@ -71,12 +71,22 @@ public abstract class FullyQualifiedTalkgroupIdentifier extends TalkgroupIdentif
     }
 
     /**
-     * Indicates if the talkgroup identify is aliased with a persona value that is different from the talkgroup ID.
+     * Indicates if the talkgroup identity is aliased with a persona value that is different from the talkgroup ID.
      * @return true if aliased.
      */
     public boolean isAliased()
     {
-        return getValue() != mTalkgroup;
+        return getValue() != 0 && getValue() != mTalkgroup;
+    }
+
+    /**
+     * Override the default behavior of TalkgroupIdentifier.isValid() to allow for fully qualified TGID's with a local
+     * ID of zero which indicates an ISSI patch.
+     */
+    @Override
+    public boolean isValid()
+    {
+        return true;
     }
 
     @Override
@@ -90,5 +100,24 @@ public abstract class FullyQualifiedTalkgroupIdentifier extends TalkgroupIdentif
         {
             return getFullyQualifiedTalkgroupAddress();
         }
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        //Attempt to match as a fully qualified talkgroup match first
+        if(o instanceof FullyQualifiedTalkgroupIdentifier fqti)
+        {
+            return getWacn() == fqti.getWacn() &&
+                    getSystem() == fqti.getSystem() &&
+                    getTalkgroup() == fqti.getTalkgroup();
+        }
+        //Attempt to match the local address against a simple talkgroup version
+        else if(o instanceof TalkgroupIdentifier ti)
+        {
+            return getValue() != 0 && ti.getValue() != 0 && getValue().equals(ti.getValue());
+        }
+
+        return super.equals(o);
     }
 }

@@ -41,7 +41,7 @@ public abstract class FullyQualifiedRadioIdentifier extends RadioIdentifier
      */
     public FullyQualifiedRadioIdentifier(int localAddress, int wacn, int system, int id, Role role)
     {
-        super(localAddress > 0 ? localAddress : id, role);
+        super(localAddress, role);
         mWacn = wacn;
         mSystem = system;
         mRadio = id;
@@ -72,12 +72,22 @@ public abstract class FullyQualifiedRadioIdentifier extends RadioIdentifier
     }
 
     /**
-     * Indicates if the radio identify is aliased with a persona value that is different from the radio ID.
+     * Indicates if the radio identity is aliased with a persona value that is different from the radio ID.
      * @return true if aliased.
      */
     public boolean isAliased()
     {
-        return getValue() != mRadio;
+        return getValue() != 0 && getValue() != mRadio;
+    }
+
+    /**
+     * Override the default behavior of RadioIdentifier.isValid() to allow for fully qualified SUID's with a local
+     * ID of zero which indicates an ISSI patch.
+     */
+    @Override
+    public boolean isValid()
+    {
+        return true;
     }
 
     @Override
@@ -91,5 +101,24 @@ public abstract class FullyQualifiedRadioIdentifier extends RadioIdentifier
         {
             return getFullyQualifiedRadioAddress();
         }
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        //Attempt to match as a fully qualified radio match first
+        if(o instanceof FullyQualifiedRadioIdentifier fqri)
+        {
+            return getWacn() == fqri.getWacn() &&
+                    getSystem() == fqri.getSystem() &&
+                    getRadio() == fqri.getRadio();
+        }
+        //Attempt to match the local address against a simple radio version
+        else if(o instanceof RadioIdentifier ri)
+        {
+            return getValue() != 0 && ri.getValue() != 0 && getValue().equals(ri.getValue());
+        }
+
+        return super.equals(o);
     }
 }

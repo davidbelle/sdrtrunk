@@ -32,7 +32,6 @@ import io.github.dsheirer.identifier.IdentifierCollection;
 import io.github.dsheirer.identifier.MutableIdentifierCollection;
 import io.github.dsheirer.identifier.encryption.EncryptionKeyIdentifier;
 import io.github.dsheirer.identifier.patch.PatchGroupPreLoadDataContent;
-import io.github.dsheirer.identifier.radio.RadioIdentifier;
 import io.github.dsheirer.identifier.scramble.ScrambleParameterIdentifier;
 import io.github.dsheirer.log.LoggingSuppressor;
 import io.github.dsheirer.message.IMessage;
@@ -98,6 +97,7 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
     private static final LoggingSuppressor LOGGING_SUPPRESSOR = new LoggingSuppressor(mLog);
     public static final String CHANNEL_START_REJECTED = "CHANNEL START REJECTED";
     public static final String MAX_TRAFFIC_CHANNELS_EXCEEDED = "MAX TRAFFIC CHANNELS EXCEEDED";
+    private static final long STALE_EVENT_THRESHOLD_MS = 2000;
 
     private Queue<Channel> mAvailablePhase1TrafficChannelQueue = new LinkedTransferQueue<>();
     private List<Channel> mManagedPhase1TrafficChannels;
@@ -306,7 +306,7 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
      * @param timeslot for the channel.
      * @param isIdleNull to indicate if this close event is trigged by an IDLE/NULL message
      */
-    public void closeP2CallEvent(long frequency, int timeslot, long timestamp, boolean isIdleNull)
+    public void closeP2CallEvent(long frequency, int timeslot, boolean isIdleNull)
     {
         /**
          * Hack: L3Harris systems can issue a channel grant on control/TS1 which creates an event for TS2 and then the
@@ -324,21 +324,13 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
 
         try
         {
-            DecodeEvent event;
-
             if(timeslot == P25P1Message.TIMESLOT_0 || timeslot == P25P1Message.TIMESLOT_1)
             {
-                event = mTS1ChannelGrantEventMap.remove(frequency);
+                mTS1ChannelGrantEventMap.remove(frequency);
             }
             else
             {
-                event = mTS2ChannelGrantEventMap.remove(frequency);
-            }
-
-            if(event != null)
-            {
-                event.end(timestamp);
-                broadcast(event);
+                mTS2ChannelGrantEventMap.remove(frequency);
             }
         }
         finally
@@ -366,8 +358,28 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
 
         try
         {
-            DecodeEvent event = timeslot == P25P1Message.TIMESLOT_1 ?
-                    mTS1ChannelGrantEventMap.get(frequency) : mTS2ChannelGrantEventMap.get(frequency);
+            DecodeEvent event = null;
+
+            if(timeslot == P25P1Message.TIMESLOT_1)
+            {
+                event = mTS1ChannelGrantEventMap.get(frequency);
+
+                if(isStaleEvent(event, timestamp))
+                {
+                    event = null;
+                    mTS1ChannelGrantEventMap.remove(frequency);
+                }
+            }
+            else if(timeslot == P25P1Message.TIMESLOT_2)
+            {
+                event = mTS2ChannelGrantEventMap.get(frequency);
+
+                if(isStaleEvent(event, timestamp))
+                {
+                    event = null;
+                    mTS1ChannelGrantEventMap.remove(frequency);
+                }
+            }
 
             if(event != null)
             {
@@ -408,8 +420,28 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
 
         try
         {
-            DecodeEvent event = timeslot == P25P1Message.TIMESLOT_1 ?
-                    mTS1ChannelGrantEventMap.get(frequency) : mTS2ChannelGrantEventMap.get(frequency);
+            DecodeEvent event = null;
+
+            if(timeslot == P25P1Message.TIMESLOT_1)
+            {
+                event = mTS1ChannelGrantEventMap.get(frequency);
+
+                if(isStaleEvent(event, timestamp))
+                {
+                    event = null;
+                    mTS1ChannelGrantEventMap.remove(frequency);
+                }
+            }
+            else if(timeslot == P25P1Message.TIMESLOT_2)
+            {
+                event = mTS2ChannelGrantEventMap.get(frequency);
+
+                if(isStaleEvent(event, timestamp))
+                {
+                    event = null;
+                    mTS2ChannelGrantEventMap.remove(frequency);
+                }
+            }
 
             if(event != null)
             {
@@ -751,10 +783,22 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
             if(channel.isTDMAChannel() && channel.getTimeslot() == P25P1Message.TIMESLOT_2)
             {
                 event = mTS2ChannelGrantEventMap.get(channel.getDownlinkFrequency());
+                // If the event is stale, remove it and allow a new event to be created.
+                if(isStaleEvent(event, timestamp))
+                {
+                    event = null;
+                    mTS2ChannelGrantEventMap.remove(channel.getDownlinkFrequency());
+                }
             }
             else
             {
                 event = mTS1ChannelGrantEventMap.get(channel.getDownlinkFrequency());
+                // If the event is stale, remove it and allow a new event to be created.
+                if(isStaleEvent(event, timestamp))
+                {
+                    event = null;
+                    mTS1ChannelGrantEventMap.remove(channel.getDownlinkFrequency());
+                }
             }
 
             //If we have an event, update it.  Otherwise, make sure we have the traffic channel allocated
@@ -763,8 +807,7 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
                 event.update(timestamp);
                 broadcast(event);
             }
-            else if(channel.getDownlinkFrequency() > 0 &&
-                    !mAllocatedTrafficChannelMap.containsKey(channel.getDownlinkFrequency()))
+            else
             {
                 processP1ChannelGrant(channel, serviceOptions, ic, opcode, timestamp);
             }
@@ -800,6 +843,24 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
     }
 
     /**
+     * Indicates if the event is stale and should be replaced with a new decode event.  Compares the event down time
+     * to the reference timestamp argument and indicates if that staleness exceeds a staleness threshold (2 seconds).
+     *
+     * Note: some decode events can remain in the channel grant event map if a traffic channel is not allocated for the
+     * event (ie tuner unavailable).  The control channel only tells us that the traffic channel is active, but doesn't
+     * tell us when the traffic channel is torn down.  So, we use this staleness evaluation to remove stale events that
+     * are left over from a previous traffic channel allocation.
+     *
+     * @param decodeEvent to evaluate
+     * @param timestamp for reference of event staleness.
+     * @return true if the event is stale.
+     */
+    private static boolean isStaleEvent(DecodeEvent decodeEvent, long timestamp)
+    {
+        return decodeEvent != null && (timestamp - decodeEvent.getTimeEnd() > STALE_EVENT_THRESHOLD_MS);
+    }
+
+    /**
      * Processes Phase 1 channel grants to allocate traffic channels and track overall channel usage.  Generates
      * decode events for each new channel that is allocated.
      *
@@ -819,6 +880,13 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
         long frequency = apco25Channel.getDownlinkFrequency();
 
         P25ChannelGrantEvent event = mTS1ChannelGrantEventMap.get(frequency);
+
+        // If the event is stale, remove it and allow a new event to be created.
+        if(isStaleEvent(event, timestamp))
+        {
+            event = null;
+            mTS1ChannelGrantEventMap.remove(frequency);
+        }
 
         if(event != null && isSameCallUpdate(identifierCollection, event.getIdentifierCollection()))
         {
@@ -973,10 +1041,22 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
         if(timeslot == P25P1Message.TIMESLOT_0 || timeslot == P25P1Message.TIMESLOT_1)
         {
             event = mTS1ChannelGrantEventMap.get(frequency);
+            // If the event is stale, remove it and allow a new event to be created.
+            if(isStaleEvent(event, timestamp))
+            {
+                event = null;
+                mTS1ChannelGrantEventMap.remove(frequency);
+            }
         }
         else if(timeslot == P25P1Message.TIMESLOT_2)
         {
             event = mTS2ChannelGrantEventMap.get(frequency);
+            // If the event is stale, remove it and allow a new event to be created.
+            if(isStaleEvent(event, timestamp))
+            {
+                event = null;
+                mTS2ChannelGrantEventMap.remove(frequency);
+            }
         }
         else
         {
@@ -1321,55 +1401,50 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
      * Compares the TO role identifier(s) from each collection for equality.  This is normally used to compare a call
      * update where we only compare the TO role.
      *
-     * @param collection1 containing a TO identifier
-     * @param collection2 containing a TO identifier
+     * @param existingIC containing a TO identifier
+     * @param nextIC containing a TO identifier
      * @return true if both collections contain a TO identifier and the TO identifiers are the same value
      */
-    private boolean isSameCallUpdate(IdentifierCollection collection1, IdentifierCollection collection2)
+    private boolean isSameCallUpdate(IdentifierCollection existingIC, IdentifierCollection nextIC)
     {
-        Identifier toIdentifier1 = collection1.getToIdentifier();
-        Identifier toIdentifier2 = collection2.getToIdentifier();
-        return toIdentifier1 != null && toIdentifier1.equals(toIdentifier2);
+        Identifier existingTO = existingIC.getToIdentifier();
+        Identifier nextTO = nextIC.getToIdentifier();
+        return existingTO != null && existingTO.equals(nextTO);
     }
 
     /**
      * Compares the TO role identifier(s) from each collection for equality.  This is normally used to compare a call
      * update where we only compare the TO role.
      *
-     * @param collection1 containing a TO identifier
-     * @param collection2 containing a TO identifier
+     * @param existingIC for the existing/previous event containing a TO identifier
+     * @param nextIC for the next event containing a TO identifier
      * @return true if both collections contain a TO identifier and the TO identifiers are the same value
      */
-    private boolean isSameCallFull(IdentifierCollection collection1, IdentifierCollection collection2)
+    private boolean isSameCallFull(IdentifierCollection existingIC, IdentifierCollection nextIC)
     {
-        Identifier to1 = collection1.getToIdentifier();
-        Identifier to2 = collection2.getToIdentifier();
+        Identifier existingTO = existingIC.getToIdentifier();
+        Identifier nextTO = nextIC.getToIdentifier();
 
-        if(to1 != null && to1.equals(to2))
+        if(existingTO != null && existingTO.equals(nextTO))
         {
-            Identifier from1 = collection1.getFromIdentifier();
+            Identifier existingFROM = existingIC.getFromIdentifier();
 
             //If the FROM identifier hasn't yet been established, then this is the same call.  We also ignore the
             //talker alias as a call identifier since on L3Harris systems they can transmit the talker alias before
             //they transmit the radio ID.
-            if(from1 == null || from1.getForm() == Form.TALKER_ALIAS)
+            if(existingFROM == null || existingFROM.getForm() == Form.TALKER_ALIAS)
             {
                 return true;
             }
 
-            Identifier from2 = collection2.getFromIdentifier();
+            Identifier nextFROM = nextIC.getFromIdentifier();
 
-            if(from2 != null && from2.getForm() == Form.TALKER_ALIAS)
+            if(nextFROM != null && nextFROM.getForm() == Form.TALKER_ALIAS)
             {
                 return true;
             }
 
-            if(from2 instanceof RadioIdentifier radio && radio.getValue() == 0)
-            {
-                return true;
-            }
-
-            return from1.equals(from2);
+            return existingFROM.equals(nextFROM);
         }
 
         return false;

@@ -663,13 +663,13 @@ public class AliasList
 
         public Alias getAlias(TalkgroupIdentifier identifier)
         {
-            //Attempt to do a fully qualified identifier match first.
+            //Attempt to do a fully qualified identifier match only
             if(identifier instanceof FullyQualifiedTalkgroupIdentifier fqti)
             {
                 return mFullyQualifiedTalkgroupAliasMap.get(fqti.getFullyQualifiedTalkgroupAddress());
             }
 
-            //Then try to match it by it's locally assigned (temporary) address.
+            //Attempt to match the talkgroup value
             int value = identifier.getValue();
 
             Alias mapValue = mTalkgroupAliasMap.get(value);
@@ -678,7 +678,7 @@ public class AliasList
                 return mapValue;
             }
 
-            //Finally, match the locally assigned address against any talkgroup ranges
+            //Alternatively, match the talkgroup to any talkgroup ranges
             for(Map.Entry<TalkgroupRange, Alias> entry : mTalkgroupRangeAliasMap.entrySet())
             {
                 if(entry.getKey().contains(value))
@@ -783,13 +783,13 @@ public class AliasList
 
         public Alias getAlias(RadioIdentifier identifier)
         {
-            //Attempt to do a fully qualified identifier match first.
+            //Match fully qualified identifier only.
             if(identifier instanceof FullyQualifiedRadioIdentifier fqri)
             {
                 return mFullyQualifiedRadioAliasMap.get(fqri.getFullyQualifiedRadioAddress());
             }
 
-            //Then match against the locally assigned (temporary) address
+            //Attempt to match against the radio identifier
             int value = identifier.getValue();
 
             Alias mapValue = mRadioAliasMap.get(value);
@@ -798,7 +798,7 @@ public class AliasList
                 return mapValue;
             }
 
-            //Finally, attempt to match the locally assigned (temporary) address against any radio ranges.
+            //Alternatively, attempt to match the radio address against any radio ranges.
             for(Map.Entry<RadioRange, Alias> entry : mRadioRangeAliasMap.entrySet())
             {
                 if(entry.getKey().contains(value))

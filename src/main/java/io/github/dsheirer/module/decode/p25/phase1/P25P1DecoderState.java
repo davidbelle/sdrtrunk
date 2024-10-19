@@ -671,8 +671,12 @@ public class P25P1DecoderState extends DecoderState implements IChannelEventList
                                 urr.getResponse() + " UNIT REGISTRATION");
                     }
                     break;
+                case OSP_IDENTIFIER_UPDATE_TDMA:
+                    //Ignore - in the extended format it is carrying a frequency band for a foreign system and we
+                    //don't allow that to corrupt the real frequency bands for this system.
+                    break;
                 default:
-                    mLog.debug("Unrecognized AMBTC Opcode: " + ambtc.getHeader().getOpcode().name());
+//                    mLog.debug("Unrecognized AMBTC Opcode: " + ambtc.getHeader().getOpcode().name());
                     break;
             }
         }
@@ -1486,13 +1490,13 @@ public class P25P1DecoderState extends DecoderState implements IChannelEventList
                 case MOTOROLA_OSP_QUEUED_RESPONSE:
                     processTSBKQueuedResponse(tsbk);
                 default:
-                    if(!tsbk.getOpcode().name().startsWith("ISP"))
-                    {
-                        LOGGING_SUPPRESSOR.info(tsbk.getOpcode().name() + tsbk.getMessage().toHexString(),
-                        1, "Unrecognized TSBK Opcode: " + tsbk.getOpcode().name() +
-                            " VENDOR:" + tsbk.getVendor() + " OPCODE:" + tsbk.getOpcodeNumber() +
-                                " MSG:" + tsbk.getMessage().toHexString());
-                    }
+//                    if(!tsbk.getOpcode().name().startsWith("ISP"))
+//                    {
+//                        LOGGING_SUPPRESSOR.info(tsbk.getOpcode().name() + tsbk.getMessage().toHexString(),
+//                        1, "Unrecognized TSBK Opcode: " + tsbk.getOpcode().name() +
+//                            " VENDOR:" + tsbk.getVendor() + " OPCODE:" + tsbk.getOpcodeNumber() +
+//                                " MSG:" + tsbk.getMessage().toHexString());
+//                    }
                     break;
             }
         }
@@ -2164,10 +2168,10 @@ public class P25P1DecoderState extends DecoderState implements IChannelEventList
                 {
                     closeCurrentCallEvent(timestamp);
                 }
-                LOGGING_SUPPRESSOR.info(lcw.getVendor().toString() + lcw.getOpcodeNumber() + lcw.getMessage().toHexString(),
-                        1, "Unrecognized LCW Opcode: " + lcw.getOpcode().name() + " VENDOR:" + lcw.getVendor() +
-                    " OPCODE:" + lcw.getOpcodeNumber() + " MSG:" + lcw.getMessage().toHexString() +
-                                " CHAN:" + getCurrentChannel() + " FREQ:" + getCurrentFrequency());
+//                LOGGING_SUPPRESSOR.info(lcw.getVendor().toString() + lcw.getOpcodeNumber() + lcw.getMessage().toHexString(),
+//                        1, "Unrecognized LCW Opcode: " + lcw.getOpcode().name() + " VENDOR:" + lcw.getVendor() +
+//                    " OPCODE:" + lcw.getOpcodeNumber() + " MSG:" + lcw.getMessage().toHexString() +
+//                                " CHAN:" + getCurrentChannel() + " FREQ:" + getCurrentFrequency());
                 break;
         }
     }
@@ -2218,7 +2222,6 @@ public class P25P1DecoderState extends DecoderState implements IChannelEventList
     public void start()
     {
         super.start();
-        mPatchGroupManager.clear();
 
         //Change the default (45-second) traffic channel timeout to 1 second
         if(mChannel.isTrafficChannel())
@@ -2230,12 +2233,5 @@ public class P25P1DecoderState extends DecoderState implements IChannelEventList
     @Override
     public void init()
     {
-    }
-
-    @Override
-    public void stop()
-    {
-        super.stop();
-        mPatchGroupManager.clear();
     }
 }
