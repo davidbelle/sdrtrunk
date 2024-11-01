@@ -188,7 +188,7 @@ public class P25P1DecoderState extends DecoderState implements IChannelEventList
     private final PatchGroupManager mPatchGroupManager = new PatchGroupManager();
     private final P25P1NetworkConfigurationMonitor mNetworkConfigurationMonitor;
     private final Listener<ChannelEvent> mChannelEventListener;
-    private P25TrafficChannelManager mTrafficChannelManager;
+    private final P25TrafficChannelManager mTrafficChannelManager;
     private ServiceOptions mCurrentServiceOptions;
 
     /**
@@ -2055,7 +2055,10 @@ public class P25P1DecoderState extends DecoderState implements IChannelEventList
                 if(lcw instanceof LCMotorolaUnitGPS gps)
                 {
                     mTrafficChannelManager.processP1TrafficCurrentUser(getCurrentFrequency(), gps.getLocation(), timestamp, lcw.toString());
-                    MutableIdentifierCollection mic = getMutableIdentifierCollection(gps.getIdentifiers(), timestamp);
+
+                    //We want to preserve the current TO/FROM and any other identifiers for the GPS event and add the GPS location
+                    MutableIdentifierCollection mic = new MutableIdentifierCollection(getIdentifierCollection().getIdentifiers());
+                    mic.update(gps.getIdentifiers());
 
                     PlottableDecodeEvent event = PlottableDecodeEvent.plottableBuilder(DecodeEventType.GPS, timestamp)
                             .location(gps.getGeoPosition())

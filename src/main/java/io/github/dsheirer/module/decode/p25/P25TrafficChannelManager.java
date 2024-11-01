@@ -1062,7 +1062,7 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
     private void requestTrafficChannelStart(Channel trafficChannel, APCO25Channel apco25Channel,
                                             IdentifierCollection identifierCollection, long timestamp)
     {
-        if(getInterModuleEventBus() != null)
+        if(apco25Channel != null && apco25Channel.getDownlinkFrequency() > 0 && getInterModuleEventBus() != null)
         {
             SourceConfigTuner sourceConfig = new SourceConfigTuner();
             sourceConfig.setFrequency(apco25Channel.getDownlinkFrequency());
@@ -1085,6 +1085,18 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
             startChannelRequest.addPreloadDataContent(new PatchGroupPreLoadDataContent(identifierCollection, timestamp));
             startChannelRequest.addPreloadDataContent(new P25FrequencyBandPreloadDataContent(mFrequencyBandMap.values()));
             getInterModuleEventBus().post(startChannelRequest);
+        }
+        else
+        {
+            //Return the channel to the traffic channel pool since we didn't start it.
+            if(mManagedPhase1TrafficChannels.contains(trafficChannel))
+            {
+                mAvailablePhase1TrafficChannelQueue.add(trafficChannel);
+            }
+            else if(mManagedPhase2TrafficChannels.contains(trafficChannel))
+            {
+                mAvailablePhase2TrafficChannelQueue.add(trafficChannel);
+            }
         }
     }
 
@@ -1163,16 +1175,20 @@ public class P25TrafficChannelManager extends TrafficChannelManager implements I
             return;
         }
 
-        if(mIgnoreDataCalls && isDataChannelGrant && tracker == null)
+        if(mIgnoreDataCalls && isDataChannelGrant)
         {
-            P25ChannelGrantEvent event = P25ChannelGrantEvent.builder(decodeEventType, timestamp, serviceOptions)
-                .channelDescriptor(apco25Channel)
-                .details("IGNORED: PHASE 1 DATA CALL " + (serviceOptions != null ? serviceOptions : ""))
-                .identifiers(ic)
-                .build();
-            tracker = new P25TrafficChannelEventTracker(event);
-            addTracker(tracker, frequency, P25P1Message.TIMESLOT_1);
-            broadcast(tracker);
+            if(tracker == null)
+            {
+                P25ChannelGrantEvent event = P25ChannelGrantEvent.builder(decodeEventType, timestamp, serviceOptions)
+                        .channelDescriptor(apco25Channel)
+                        .details("IGNORED: PHASE 1 DATA CALL " + (serviceOptions != null ? serviceOptions : ""))
+                        .identifiers(ic)
+                        .build();
+                tracker = new P25TrafficChannelEventTracker(event);
+                addTracker(tracker, frequency, P25P1Message.TIMESLOT_1);
+                broadcast(tracker);
+            }
+
             return;
         }
 
