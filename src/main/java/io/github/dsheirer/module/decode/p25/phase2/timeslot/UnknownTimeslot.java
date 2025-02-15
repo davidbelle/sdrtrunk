@@ -41,6 +41,7 @@ public class UnknownTimeslot extends Timeslot
         StringBuilder sb = new StringBuilder();
         sb.append("TS").append(getTimeslot());
         sb.append(" UNKNOWN TIMESLOT - DATA UNIT ID: ").append(getDataUnitID());
+        sb.append(" MSG:").append(getMessage().toHexString());
         return sb.toString();
     }
 

@@ -1,6 +1,6 @@
 /*
  * *****************************************************************************
- * Copyright (C) 2014-2024 Dennis Sheirer
+ * Copyright (C) 2014-2025 Dennis Sheirer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ import io.github.dsheirer.identifier.alias.DmrTalkerAliasIdentifier;
 import io.github.dsheirer.identifier.integer.IntegerIdentifier;
 import io.github.dsheirer.identifier.talkgroup.TalkgroupIdentifier;
 import io.github.dsheirer.log.LoggingSuppressor;
+import io.github.dsheirer.message.EmptyTimeslotPlaceholderMessage;
 import io.github.dsheirer.message.IMessage;
 import io.github.dsheirer.message.TimeslotMessage;
 import io.github.dsheirer.module.decode.DecoderType;
@@ -44,7 +45,6 @@ import io.github.dsheirer.module.decode.dmr.channel.DMRAbsoluteChannel;
 import io.github.dsheirer.module.decode.dmr.channel.DMRChannel;
 import io.github.dsheirer.module.decode.dmr.channel.DMRLsn;
 import io.github.dsheirer.module.decode.dmr.event.DMRDecodeEvent;
-import io.github.dsheirer.module.decode.dmr.identifier.DMRTalkgroup;
 import io.github.dsheirer.module.decode.dmr.message.DMRMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.DataMessage;
 import io.github.dsheirer.module.decode.dmr.message.data.csbk.CSBKMessage;
@@ -88,8 +88,9 @@ import io.github.dsheirer.module.decode.dmr.message.data.terminator.Terminator;
 import io.github.dsheirer.module.decode.dmr.message.type.ServiceOptions;
 import io.github.dsheirer.module.decode.dmr.message.voice.VoiceEMBMessage;
 import io.github.dsheirer.module.decode.dmr.message.voice.VoiceMessage;
+import io.github.dsheirer.module.decode.dmr.message.voice.embedded.EmbeddedEncryptionParameters;
 import io.github.dsheirer.module.decode.dmr.message.voice.embedded.EmbeddedParameters;
-import io.github.dsheirer.module.decode.dmr.message.voice.embedded.EncryptionParameters;
+import io.github.dsheirer.module.decode.dmr.sync.DMRSyncPattern;
 import io.github.dsheirer.module.decode.event.DecodeEvent;
 import io.github.dsheirer.module.decode.event.DecodeEventType;
 import io.github.dsheirer.module.decode.event.IDecodeEvent;
@@ -315,7 +316,11 @@ public class DMRDecoderState extends TimeslotDecoderState
             {
                 processSMS(sms);
             }
-            else if(message instanceof DMRMessage)
+            else if(isValid(message) && message instanceof DMRMessage)
+            {
+                broadcast(new DecoderStateEvent(this, Event.CONTINUATION, State.ACTIVE, getTimeslot()));
+            }
+            else if(message instanceof EmptyTimeslotPlaceholderMessage)
             {
                 broadcast(new DecoderStateEvent(this, Event.CONTINUATION, State.ACTIVE, getTimeslot()));
             }
@@ -526,10 +531,11 @@ public class DMRDecoderState extends TimeslotDecoderState
 
         GeoPosition geoPosition = PacketUtil.extractGeoPosition(packet.getPacket());
 
-        if (geoPosition != null) {
+        if (geoPosition != null)
+        {
             PlottableDecodeEvent plottableDecodeEvent = PlottableDecodeEvent.plottableBuilder(DecodeEventType.GPS, packet.getTimestamp())
                     .channel(getCurrentChannel())
-                    .identifiers(new IdentifierCollection(packet.getIdentifiers()))
+                    .identifiers(getMergedIdentifierCollection(packet.getIdentifiers()))
                     .protocol(Protocol.LRRP)
                     .location(geoPosition)
                     .build();
@@ -545,7 +551,7 @@ public class DMRDecoderState extends TimeslotDecoderState
     {
         if(message.getSyncPattern().isMobileSyncPattern())
         {
-            if(message.getSyncPattern().isDirectMode())
+            if(message.getSyncPattern().isDirect())
             {
                 updateCurrentCall(DecodeEventType.CALL, "DIRECT MODE", message.getTimestamp());
             }
@@ -553,9 +559,6 @@ public class DMRDecoderState extends TimeslotDecoderState
             {
                 updateCurrentCall(DecodeEventType.CALL, "REPEATER", message.getTimestamp());
             }
-
-            //Use the timeslot as the talkgroup identifier since DCDM & simple repeater modes don't use talkgroups
-            getIdentifierCollection().update(DMRTalkgroup.create(getTimeslot()));
         }
         else
         {
@@ -568,7 +571,7 @@ public class DMRDecoderState extends TimeslotDecoderState
             {
                 EmbeddedParameters embedded = voiceEmb.getEmbeddedParameters();
 
-                if(embedded.getShortBurst() instanceof EncryptionParameters arc4)
+                if(embedded.getShortBurst() instanceof EmbeddedEncryptionParameters arc4)
                 {
                     updateEncryptedCall(arc4, true, voiceEmb.getTimestamp());
                 }
@@ -893,7 +896,7 @@ public class DMRDecoderState extends TimeslotDecoderState
                 {
                     //Log when a CSBK that is not the Unknown CSBK is processed, to detect when new opcodes are added
                     //that are not ChannelGrant subclass implementations.
-                    if(!(csbk instanceof UnknownCSBKMessage))
+                    if(!(csbk instanceof UnknownCSBKMessage) && csbk.isValid())
                     {
                         mLog.error("Unrecognized DMR channel grant CSBK ignored: " + csbk.getClass());
                     }
@@ -1290,10 +1293,8 @@ public class DMRDecoderState extends TimeslotDecoderState
                 }
                 break;
             case FULL_STANDARD_GROUP_VOICE_CHANNEL_USER:
-                if(message instanceof GroupVoiceChannelUser)
+                if(message instanceof GroupVoiceChannelUser gvcu)
                 {
-                    GroupVoiceChannelUser gvcu = (GroupVoiceChannelUser)message;
-
                     if(isTerminator)
                     {
                         closeCurrentCallEvent(message.getTimestamp());
@@ -1355,10 +1356,10 @@ public class DMRDecoderState extends TimeslotDecoderState
 
     /**
      * Updates the current call with encryption information.
-     * @param encryptionParameters decoded from the Voice Frame F
+     * @param embeddedEncryptionParameters decoded from the Voice Frame F
      * @param isGroup true for group or false for individual call.
      */
-    private void updateEncryptedCall(EncryptionParameters encryptionParameters, boolean isGroup, long timestamp)
+    private void updateEncryptedCall(EmbeddedEncryptionParameters embeddedEncryptionParameters, boolean isGroup, long timestamp)
     {
         if(mCurrentCallEvent != null)
         {
@@ -1366,11 +1367,11 @@ public class DMRDecoderState extends TimeslotDecoderState
 
             if(details == null)
             {
-                details = encryptionParameters.toString();
+                details = embeddedEncryptionParameters.toString();
             }
-            else if(!details.contains(encryptionParameters.toString()) && !details.contains("ENCRYPTION"))
+            else if(!details.contains(embeddedEncryptionParameters.toString()) && !details.contains("ENCRYPTION"))
             {
-                details += " " + encryptionParameters;
+                details += " " + embeddedEncryptionParameters;
             }
 
             mCurrentCallEvent.setDetails(details);
@@ -1380,7 +1381,7 @@ public class DMRDecoderState extends TimeslotDecoderState
             mCurrentCallEvent = DMRDecodeEvent.builder(isGroup ? DecodeEventType.CALL_GROUP_ENCRYPTED :
                             DecodeEventType.CALL_ENCRYPTED, timestamp)
                     .channel(getCurrentChannel())
-                    .details(encryptionParameters.toString())
+                    .details(embeddedEncryptionParameters.toString())
                     .identifiers(getIdentifierCollection().copyOf())
                     .timeslot(getTimeslot())
                     .build();
